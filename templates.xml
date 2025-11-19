@@ -1,0 +1,77 @@
+<GuiXml>
+    <Animations>
+        <AnimationTimeline name="SingleBarAnimation" virtual = "true">
+            <Animations>
+                <ColorAnimation duration="3500" startColor="00FF00" endColor="FF0000" />
+                <CustomAnimation duration="3500">
+                    <UpdateFunction>
+                        self:GetAnimatedControl():SetValue(1 - progress)
+                        self:GetAnimatedControl():GetNamedChild("Duration"):SetText(zo_round((self:GetDuration()/1000)*(1-progress)))
+                    </UpdateFunction>
+                </CustomAnimation>
+            </Animations>
+        </AnimationTimeline>
+    </Animations>
+
+    <Controls>
+        <TopLevelControl name="SingleSimpleTracker" hidden="false" resizeToFitDescendents="true" virtual="true">
+            <Dimensions x="64" y="64" />
+            <Anchor point="TOPLEFT" relativeTo="GuiRoot" relativePoint="TOPLEFT" offsetX="0" offsetY="0" />
+            <Controls>
+                <Texture name="$(parent)Texture" hidden="false" textureFile="/esoui/art/icons/icon_missing.dds">
+                    <Dimensions x="64" y="64" />
+                    <Anchor point="CENTER" relativeTo="$(parent)" relativePoint="CENTER" offsetX="0" offsetY="0" />
+                    <Controls>
+                        <Texture name="$(parent)Frame" textureFile="EsoUI/Art/ActionBar/abilityFrame64_up.dds" layer="CONTROLS">
+                            <AnchorFill />
+                        </Texture>
+                    </Controls>
+                </Texture>
+                <Label name="$(parent)Label" text="0" font="$(GAMEPAD_BOLD_FONT)|45|soft-shadow-thick" color="FFFFFF" 
+                        horizontalAlignment="CENTER" verticalAlignment="CENTER" hidden="false">
+                    <Dimensions x="64" y="64" />
+                    <Anchor point="CENTER" relativeTo="$(parent)" relativePoint="CENTER" offsetX="0" offsetY="0" />
+                </Label>
+                <Label name="$(parent)Stacks" text="0" font="$(GAMEPAD_BOLD_FONT)|20|soft-shadow-thick" color="#FFFFFF"  
+                        horizontalAlignment ="RIGHT" verticalAlignment="TOP" hidden="false">
+                    <Dimensions x="64" y="64" />
+                    <Anchor point="TOPRIGHT" relativeTo="$(parent)" relativePoint="TOPRIGHT" offsetX="-5" offsetY="0" />
+                </Label>
+            </Controls>
+        </TopLevelControl>
+
+        <TopLevelControl name="SingleBarDuration" hidden="false" resizeToFitDescendents="true" virtual="true" scale="1">
+            <Dimensions x="64" y="64" />
+            <Anchor point="CENTER" relativeTo="GuiRoot" relativePoint="CENTER" offsetX="0" offsetY="0" />
+            <Controls>
+                <StatusBar name="$(parent)Bar" hidden="false" barAlignment="Normal" color="00FF00" alpha="0.9">
+					<Dimensions x="200" y="25" />
+                    <Anchor point="LEFT" relativeTo="$(parent)Background" relativePoint="LEFT" offsetX="0" offsetY="0" />
+                    <Controls>
+                        <Backdrop name="$(parent)Background" centerColor="777777" edgeColor="00000000" alpha="0.5">
+                            <Dimensions x="200" y="25" />
+                            <Anchor point="TOPLEFT" relativeTo="$(parent)" relativePoint="TOPLEFT" offsetX="0" offsetY="0" />
+                        </Backdrop>
+                        <Label name="$(parent)Duration" hidden="false" text="0" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="RIGHT" verticalAlignment="CENTER">
+                            <Dimensions x="200" y="25" />
+                            <Anchor point="RIGHT" relativeTo="$(parent)Background" relativePoint="RIGHT" offsetX="0" offsetY="0" />
+                        </Label>
+                        <Label name="$(parent)Target" hidden="false" text="Major Savagery" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="LEFT" verticalAlignment="TOP">
+                            <Dimensions x="200" y="25" />
+                            <Anchor point="LEFT" relativeTo="$(parent)Background" relativePoint="LEFT" offsetX="0" offsetY="0" />
+                        </Label>
+                    </Controls>
+                </StatusBar>
+                <Texture name="$(parent)Texture" hidden="false" textureFile="/esoui/art/icons/icon_missing.dds">
+					<Dimensions x="25" y="25" />
+                    <Anchor point="RIGHT" relativeTo="$(parent)Bar" relativePoint="LEFT" offsetX="-10" offsetY="0" />
+                    <Controls>
+                        <Texture name="$(parent)Frame" hidden="false" textureFile="EsoUI/Art/ActionBar/abilityFrame64_up.dds" layer="CONTROLS">
+                            <AnchorFill />
+                        </Texture>
+                    </Controls>
+                </Texture>
+            </Controls>
+        </TopLevelControl>
+    </Controls>
+</GuiXml>
