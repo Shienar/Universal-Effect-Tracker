@@ -3,7 +3,6 @@ GET = GET or {}
 local settings = nil
 local settingPages = {
 	mainMenu = {},
-	generalSettings = {},
 	trackedList = {},
 	newTracker = {},
 	utilities = {},
@@ -12,7 +11,7 @@ local currentPageIndex = 2
 local editIndex = -1
 
 -- New/updated tracker settings. Local until "save"
--- THESE ARE DEFAULT VALUES FOR A NEW TRACKER.
+-- These are default values for a new tracker.
 local newTracker = {
 	control = nil,
 	animation = nil,
@@ -20,8 +19,6 @@ local newTracker = {
 	type = "Simple",
 	targetType = "Player",
 	textSettings = {
-		showStacks = true,
-		showDuration = true,
 		duration = {
 			color = {
 				r = 1,
@@ -44,8 +41,21 @@ local newTracker = {
 			textScale = 1,
 			x = -5,
 			y = 0,
+			hidden = false,
 		},
-		hidden = false,
+		label = {
+			color = {
+				r = 1,
+				g = 1,
+				b = 1,
+				a = 1,
+			},
+			textScale = 1,
+			x = 0,
+			y = 0,
+			hidden = false,
+			labelType = "Ability Name",
+		},
 	},
 	abilityIDs = {
 		[0] = "",
@@ -66,6 +76,20 @@ local function loadMenu(menu, jumpToIndex)
 	end
 end
 
+local function temporarilyShowControl(index) 
+    --Hide UI 5 seconds after most recent change.
+	local control = GET.savedVariables.trackerList[index].control
+	if control then
+		control:SetHidden(false)
+		EVENT_MANAGER:RegisterForUpdate(GET.name.." move "..control:GetName(), 5000, function()
+			if SCENE_MANAGER:GetScene("hud"):GetState() == SCENE_HIDDEN then
+				control:SetHidden(true)
+			end
+			EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..control:GetName())
+		end)
+	end
+end
+
 function GET.InitSettings()
 	settings = LibHarvensAddonSettings:AddAddon("General Effect Tracker")
 
@@ -77,6 +101,8 @@ function GET.InitSettings()
 	local setNewAbilityID = nil
 	local add1AbilityID, remove1AbilityID = nil, nil
 	local deleteTracker = nil
+	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
+	local hideLabel, labelFontColor, labelFontScale, labelXOffset, labelYOffset, setLabelType = nil, nil, nil, nil, nil, nil
 
 	---------------------------------------
 	---				Labels				---
@@ -84,12 +110,14 @@ function GET.InitSettings()
 
 	local mainMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Main Menu",}
 	local navLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Navigation",}
-	local generalMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "General Settings",}
 	local trackedListMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Current Trackers",}
 	local newTrackerMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Edit Tracker",}
 	local abilityIDListLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Tracked abilityIDs",}
 	local positionLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Position",}
 	local textSettingsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Text",}
+	local durationLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Duration",}
+	local stacksLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Stacks",}
+	local nameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Name",}
 	local printLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Print",}
 
 	
@@ -97,16 +125,6 @@ function GET.InitSettings()
 	---			Navigation Buttons		---
 	---------------------------------------
 
-	local generalMenuButton = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "GENERAL",
-		buttonText = "GENERAL",
-		tooltip = "General settings",
-		clickHandler = function(control)
-			loadMenu(settingPages.generalSettings, 2)
-			currentPageIndex = 2
-		end
-	}
 	local trackedListMenuButton = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "TRACKERS",
@@ -114,7 +132,7 @@ function GET.InitSettings()
 		tooltip = "View, Edit, and delete from your list of tracked effects.",
 		clickHandler = function(control)
 			loadMenu(settingPages.trackedList, 2)
-			currentPageIndex = 3
+			currentPageIndex = 2
 
 			--Tracker settings are in a table indexed from 0 to #trackers - 1
 			--Create settings on setting indexes 2 to #trackers + 1
@@ -147,8 +165,24 @@ function GET.InitSettings()
 							}, newIndex, false)
 						end
 
+						--Modify settings as needed to fit tracker type
+						if newTracker.type == "Bar" then
+							local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+							if stacksIndex then
+								settings:RemoveSettings(stacksIndex, 6, false)
+								settings:AddSettings({nameLabel, hideLabel, labelFontColor, labelFontScale, labelXOffset, labelYOffset, setLabelType}, stacksIndex, false)
+							end
+						else
+							local nameIndex = settings:GetIndexOf(nameLabel, true)
+							if nameIndex then
+								settings:RemoveSettings(nameIndex, 7, false)
+								settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+							end
+						end
+
 						--Add the remove button
 						settings:AddSetting(deleteTracker, #settings.settings - 1, false)
+
 					end
 				}, #settings.settings, false)
 			end
@@ -168,8 +202,6 @@ function GET.InitSettings()
 				type = "Simple",
 				targetType = "Player",
 				textSettings = {
-					showStacks = true,
-					showDuration = true,
 					duration = {
 						color = {
 							r = 1,
@@ -192,8 +224,21 @@ function GET.InitSettings()
 						textScale = 1,
 						x = -5,
 						y = 0,
+						hidden = false,
 					},
-					hidden = false,
+					label = {
+						color = {
+							r = 1,
+							g = 1,
+							b = 1,
+							a = 1,
+						},
+						textScale = 1,
+						x = 0,
+						y = 0,
+						hidden = false,
+						labelType = "Ability Name",
+					},
 				},
 				abilityIDs = {
 					[0] = "",
@@ -205,7 +250,7 @@ function GET.InitSettings()
 			}
 
 			loadMenu(settingPages.newTracker, 2)
-			currentPageIndex = 4
+			currentPageIndex = 3
 			editIndex = -1
 		end
 	}
@@ -216,7 +261,7 @@ function GET.InitSettings()
 		tooltip = "Tools that will help you find the abilityIDs for certain effects.",
 		clickHandler = function(control)
 			loadMenu(settingPages.utilities, 2)
-			currentPageIndex = 5
+			currentPageIndex = 4
 		end
 	}
 	local returnToMainMenuButton = {
@@ -230,12 +275,6 @@ function GET.InitSettings()
 	}
 
 	---------------------------------------
-	---			General Settings		---
-	---------------------------------------
-
-	
-
-	---------------------------------------
 	---			Tracker List			---
 	---------------------------------------
 	
@@ -246,7 +285,7 @@ function GET.InitSettings()
 		tooltip = "PERMANENTLY removes this tracker.\n\
 					This action cannot be undone.",
 		clickHandler = function(control)
-			--table.remove isn't saving changes for some reason
+			--table.remove isn't saving changes for some reason - TODO
 			if #GET.savedVariables.trackerList < (editIndex + 1) then
 				GET.savedVariables.trackerList[editIndex] = GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1]
 			end
@@ -261,7 +300,7 @@ function GET.InitSettings()
 	}
 
 	---------------------------------------
-	---			Add New Tracker		---
+	---			Add New Tracker		    ---
 	---------------------------------------
 
 	local setNewTrackerName = {
@@ -289,7 +328,22 @@ function GET.InitSettings()
 			{name = "Bar", data = 2},
 		},
 		getFunction = function() return newTracker.type end,
-		setFunction = function(control, itemName, itemData) newTracker.type = itemName end,
+		setFunction = function(control, itemName, itemData) 
+			newTracker.type = itemName
+			if newTracker.type == "Bar" then
+				local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+				if stacksIndex then
+					settings:RemoveSettings(stacksIndex, 6, false)
+					settings:AddSettings({nameLabel, hideLabel, labelFontColor, labelFontScale, labelXOffset, labelYOffset, setLabelType}, stacksIndex, false)
+				end
+			else
+				local nameIndex = settings:GetIndexOf(nameLabel, true)
+				if nameIndex then
+					settings:RemoveSettings(nameIndex, 7, false)
+					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+				end
+			end
+		end,
 		default = 1,
 		disable = function() return editIndex >= 0 end
 	}
@@ -318,6 +372,7 @@ function GET.InitSettings()
 			newTracker.overrideTexturePath = value
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = ""
@@ -389,6 +444,7 @@ function GET.InitSettings()
 			if newTracker.control then
 				newTracker.control:ClearAnchors()
 				newTracker.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.x
@@ -409,6 +465,7 @@ function GET.InitSettings()
 			if newTracker.control then
 				newTracker.control:ClearAnchors()
 				newTracker.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.y
@@ -428,10 +485,16 @@ function GET.InitSettings()
 			newTracker.scale = value
 			if newTracker.control then
 				newTracker.control:SetScale(value)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.scale
 	}
+
+
+	-----------------------------------------
+	---			Add New Tracker (Text)    ---
+	-----------------------------------------
 
 	local hideDuration = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
@@ -441,7 +504,10 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.duration.hidden = value 
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):SetHidden(value)
+				local child = newTracker.control:GetNamedChild("Duration")
+				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+				child:SetHidden(value)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.duration.hidden
@@ -458,7 +524,10 @@ function GET.InitSettings()
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.duration.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
+				local child = newTracker.control:GetNamedChild("Duration")
+				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+				child:SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = {1, 1, 1, 1}
@@ -477,7 +546,10 @@ function GET.InitSettings()
 		setFunction = function(value)
 			newTracker.textSettings.duration.textScale = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):SetScale(newTracker.textSettings.duration.textScale)
+				local child = newTracker.control:GetNamedChild("Duration")
+				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+				child:SetScale(newTracker.textSettings.duration.textScale)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.duration.textScale
@@ -496,8 +568,11 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.duration.x  = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):ClearAnchors()
-				newTracker.control:GetNamedChild("Label"):SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				local child = newTracker.control:GetNamedChild("Duration")
+				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+				child:ClearAnchors()
+				child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.duration.x 
@@ -516,14 +591,17 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.duration.y = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):ClearAnchors()
-				newTracker.control:GetNamedChild("Label"):SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				local child = newTracker.control:GetNamedChild("Duration")
+				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+				child:ClearAnchors()
+				child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.duration.y
 	}
 
-	local hideStacks = {
+	hideStacks = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Hide Stacks",
 		tooltip = "Disables the stack count display.",
@@ -532,12 +610,13 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.hidden = value 
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Stacks"):SetHidden(value)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.duration.hidden
 	}
 
-	local stackFontColor = {
+	stackFontColor = {
 		type = LibHarvensAddonSettings.ST_COLOR,
 		label = "Stacks Text Color",
 		tooltip = "Choose the stack's text color",
@@ -549,12 +628,13 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = {1, 1, 1, 1}
 	}
 
-	local stackFontScale = {
+	stackFontScale = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Stacks Text Scale",
 		tooltip = "Modifies the stack's text size.\n",
@@ -568,12 +648,13 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.textScale = value
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.stacks.textScale
 	}
 
-	local stackXOffset = {
+	stackXOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "X Offset",
 		tooltip = "Modifies the stacks's X Offset.",
@@ -588,12 +669,13 @@ function GET.InitSettings()
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Stacks"):ClearAnchors()
 				newTracker.control:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.stacks.x 
 	}
 
-	local stackYOffset = {
+	stackYOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Y Offset",
 		tooltip = "Modifies the stacks's Y Offset.",
@@ -608,10 +690,119 @@ function GET.InitSettings()
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Stacks"):ClearAnchors()
 				newTracker.control:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.textSettings.stacks.y
 	}
+
+	hideLabel = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Hide Label",
+		tooltip = "Disables the name label dissplay.",
+		getFunction = function() return newTracker.textSettings.label.hidden end,
+		setFunction = function(value) 
+			newTracker.textSettings.label.hidden = value 
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetHidden(value)
+			end
+		end,
+		default = newTracker.textSettings.label.hidden
+	}
+
+	labelFontColor = {
+		type = LibHarvensAddonSettings.ST_COLOR,
+		label = "Label Text Color",
+		tooltip = "Choose the label's text color",
+		getFunction = function() 
+			return newTracker.textSettings.label.color.r, newTracker.textSettings.label.color.g, 
+				newTracker.textSettings.label.color.b, newTracker.textSettings.label.color.a 
+		end,
+		setFunction = function(r, g, b, a) 
+			newTracker.textSettings.label.color = {r = r, g = g, b = b, a = a}
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetColor(newTracker.textSettings.label.color.r, newTracker.textSettings.label.color.g, newTracker.textSettings.label.color.b, newTracker.textSettings.label.color.a  )
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = {1, 1, 1, 1}
+	}
+
+	labelFontScale = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "Label Text Scale",
+		tooltip = "Modifies the label's text size.\n",
+		min = 0.1,
+		max = 5,
+		step = 0.1,
+		format = "%.1f", 
+		unit = "",
+		getFunction = function() return newTracker.textSettings.label.textScale end,
+		setFunction = function(value)
+			newTracker.textSettings.label.textScale = value
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetScale(newTracker.textSettings.label.textScale)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.label.textScale
+	}
+
+	labelXOffset = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "X Offset",
+		tooltip = "Modifies the label's X Offset.",
+		min = -100,
+		max = 100,
+		step = 1,
+		format = "%.0f",  -- No decimal places
+		unit = "",
+		getFunction = function() return newTracker.textSettings.label.x end,
+		setFunction = function(value) 
+			newTracker.textSettings.label.x  = value
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Label"):ClearAnchors()
+				newTracker.control:GetNamedChild("Label"):SetAnchor(LEFT, "$(parent)Background", LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.label.x 
+	}
+
+	labelYOffset = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "Y Offset",
+		tooltip = "Modifies the label's Y Offset.",
+		min = -100,
+		max = 100,
+		step = 1,
+		format = "%.0f",  -- No decimal places
+		unit = "",
+		getFunction = function() return newTracker.textSettings.label.y end,
+		setFunction = function(value) 
+			newTracker.textSettings.label.y = value
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Label"):ClearAnchors()
+				newTracker.control:GetNamedChild("Label"):SetAnchor(LEFT, newTracker.control, LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.label.y
+	}
+
+	setLabelType = {
+		type = LibHarvensAddonSettings.ST_DROPDOWN,
+		label = "Label Type",
+		tooltip = "",
+		items = {
+			{name = "Ability Name", data = 1},
+			{name = "Unit Name", data = 2},
+		},
+		getFunction = function() return newTracker.textSettings.label.labelType end,
+		setFunction = function(control, itemName, itemData) newTracker.textSettings.label.labelType = itemName end,
+		default = 1
+	}
+-------------------------------------------------------------------------------------------
 
 	--Fancy back buttons.
 	local saveButton = {
@@ -624,7 +815,7 @@ function GET.InitSettings()
 			if editIndex >= 0 then
 				index = editIndex
 			else
-				index = #GET.savedVariables.trackerList
+				index = #GET.savedVariables.trackerList + 1
 			end
 			GET.savedVariables.trackerList[index] = {}
 			ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
@@ -707,15 +898,13 @@ function GET.InitSettings()
 	---			Menu Groupings			---
 	---------------------------------------
 
-	settingPages.mainMenu = {mainMenuLabel, generalMenuButton, trackedListMenuButton, addNewTrackerButton, utilityMenuButton}
-	settingPages.generalSettings = {generalMenuLabel, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
-														stackFontColor, stackFontScale, stackXOffset, stackYOffset, navLabel, returnToMainMenuButton}
+	settingPages.mainMenu = {mainMenuLabel, trackedListMenuButton, addNewTrackerButton, utilityMenuButton}
 	settingPages.trackedList = {trackedListMenuLabel, returnToMainMenuButton}
 	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, 
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, remove1AbilityID, 
 									positionLabel, newScale, newXOffset, newYOffset,
-									textSettingsLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
-														hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
+									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
+														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
 									navLabel, cancelButton, saveButton}
 	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, navLabel, returnToMainMenuButton}
 
