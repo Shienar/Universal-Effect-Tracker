@@ -289,16 +289,25 @@ function GET.InitSettings()
 		tooltip = "PERMANENTLY removes this tracker.\n\
 					This action cannot be undone.",
 		clickHandler = function(control)
-			--table.remove isn't saving changes for some reason - TODO
+			if newTracker.control then 
+				if newTracker.control:GetNamedChild("Stacks") then
+					--simple
+					GET.simplePool:ReleaseObject(newTracker.controlKey)
+				else
+					--bar 
+					GET.barPool:ReleaseObject(newTracker.controlKey)
+				end
+			end
+			if newTracker.animation then
+				GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
+			end
+
+			--table.remove isn't saving changes for some reason -
 			if #GET.savedVariables.trackerList < (editIndex + 1) then
 				GET.savedVariables.trackerList[editIndex] = GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1]
 			end
 			GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1] = nil
 
-			if newTracker.control then 
-				newTracker.control:SetHidden(true) 
-				EVENT_MANAGER:UnregisterForUpdate(GET.name..newTracker.control:GetName())
-			end 
 			loadMenu(settingPages.mainMenu, currentPageIndex)
 		end
 	}
@@ -310,17 +319,12 @@ function GET.InitSettings()
 	local setNewTrackerName = {
 		type = LibHarvensAddonSettings.ST_EDIT,
 		label = "Tracker Name",
-		tooltip = "Enter your custom name for this tracker\n\
-					Names must be unique.",
+		tooltip = "Enter your custom name for this tracker\n",
 		getFunction = function() return newTracker.name end,
-		setFunction = function(value) 
-			for k, v in pairs(GET.savedVariables.trackerList) do
-				if v.name == value and k ~= editIndex then newTracker.name = "" end
-			end
+		setFunction = function(value)
 			newTracker.name = value
 		end,
 		default = "New Tracker",
-		disable = function() return editIndex >= 0 end --Can't change for existing trackers.
 	}
 
 	local setNewTrackerType = {
@@ -347,9 +351,11 @@ function GET.InitSettings()
 					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
 				end
 			end
+			if newTracker.control then 
+				GET.InitSingleDisplay(newTracker)
+			end
 		end,
 		default = 1,
-		disable = function() return editIndex >= 0 end
 	}
 
 	local setNewTrackerTargetType = {
@@ -837,6 +843,15 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			loadMenu(settingPages.mainMenu, currentPageIndex)
 			if editIndex >= 0 then
+				if GET.savedVariables.trackerList[editIndex].type ~= newTracker.type then
+					if newTracker.type == "Simple" then
+						GET.simplePool:ReleaseObject(newTracker.controlKey)
+					elseif newTracker.type == "Bar" then
+						GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
+						GET.barPool:ReleaseObject(newTracker.controlKey)
+					end
+				end
+
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[editIndex]) --Load old changes
 			end
 			editIndex = -1

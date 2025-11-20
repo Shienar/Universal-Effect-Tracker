@@ -61,6 +61,209 @@ local newTracker = {
 }
 ]]
 
+local function InitSimple(settingsTable, unitTag)
+	--Create controls and assign default values
+
+	if not settingsTable.control then
+		settingsTable.control, settingsTable.controlKey = GET.simplePool:AcquireObject()
+	elseif string.find(settingsTable.control:GetName(), "Bar") then
+		GET.barAnimationPool:ReleaseObject(settingsTable.animationKey)
+		GET.barPool:ReleaseObject(settingsTable.controlKey)
+		settingsTable.control, settingsTable.controlKey = GET.simplePool:AcquireObject()
+	end
+
+	settingsTable.control:ClearAnchors()
+	settingsTable.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
+	settingsTable.control:SetScale(settingsTable.scale)
+	local textureControl = settingsTable.control:GetNamedChild("Texture")
+	local durationControl = settingsTable.control:GetNamedChild("Duration")
+	local stackControl = settingsTable.control:GetNamedChild("Stacks")
+
+	durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
+	durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
+	durationControl:SetScale(settingsTable.textSettings.duration.textScale)
+	durationControl:ClearAnchors()
+	durationControl:SetAnchor(CENTER, simpleDurationControl, CENTER, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+	
+	stackControl:SetHidden(settingsTable.textSettings.stacks.hidden)
+	stackControl:SetColor(settingsTable.textSettings.stacks.color.r, settingsTable.textSettings.stacks.color.g, settingsTable.textSettings.stacks.color.b, settingsTable.textSettings.stacks.color.a)
+	stackControl:SetScale(settingsTable.textSettings.stacks.textScale)
+	stackControl:ClearAnchors()
+	stackControl:SetAnchor(TOPRIGHT, simpleDurationControl, TOPRIGHT, settingsTable.textSettings.stacks.x - 5, settingsTable.textSettings.stacks.y)
+
+	if settingsTable.overrideTexturePath == "" then
+		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+	else
+		textureControl:SetTexture(settingsTable.overrideTexture)
+	end
+
+	EVENT_MANAGER:RegisterForUpdate(GET.name..settingsTable.control:GetName(), 100, function()
+		if DoesUnitExist(unitTag) then
+			local buffList = {}
+			for i = 1, GetNumBuffs(unitTag) do
+				local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
+				buffList[tostring(abilityId)] = {endTime=endTime, stacks=stacks}
+			end
+			for k, v in pairs(settingsTable.abilityIDs) do
+				if buffList[v] then
+					local time = zo_roundToZero(((1000*buffList[v].endTime)-GetGameTimeMilliseconds())/1000)
+					if time < 0 then time = "" end --permanent effects
+					durationControl:SetText(time)
+					stackControl:SetText(buffList[v].stacks)
+					if settingsTable.overrideTexturePath == "" then
+						textureControl:SetTexture(GetAbilityIcon(v))
+					end
+					return
+				end
+			end
+			--No active effects
+			textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+			durationControl:SetText("")
+			stackControl:SetText("")
+		end
+	end)
+
+	return settingsTable.control
+end
+
+local function InitBar(settingsTable, unitTag)
+	if not settingsTable.control then
+		settingsTable.control, settingsTable.controlKey = GET.barPool:AcquireObject()
+		settingsTable.animation, settingsTable.animationKey = GET.barAnimationPool:AcquireObject()
+	elseif string.find(settingsTable.control:GetName(), "Simple") then
+		GET.simplePool:ReleaseObject(settingsTable.controlKey)
+		settingsTable.control, settingsTable.controlKey = GET.barPool:AcquireObject()
+		settingsTable.animation, settingsTable.animationKey = GET.barAnimationPool:AcquireObject()
+	end
+
+	local topLevelControl = settingsTable.control
+	local animation = settingsTable.animation
+	topLevelControl:ClearAnchors()
+	topLevelControl:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
+	topLevelControl:SetScale(settingsTable.scale)
+
+	local textureControl = topLevelControl:GetNamedChild("Texture")
+	local barControl = topLevelControl:GetNamedChild("Bar")
+	local labelControl = barControl:GetNamedChild("Label")
+	local durationControl = barControl:GetNamedChild("Duration")
+
+	for i = 1, animation:GetNumAnimations() do
+		animation:GetAnimation(i):SetAnimatedControl(barControl)
+	end
+
+	durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
+	durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
+	durationControl:SetScale(settingsTable.textSettings.duration.textScale)
+	durationControl:ClearAnchors()
+	durationControl:SetAnchor(RIGHT, barControl:GetNamedChild("Background"), RIGHT, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+
+	labelControl:SetHidden(settingsTable.textSettings.label.hidden)
+	labelControl:SetColor(settingsTable.textSettings.label.color.r, settingsTable.textSettings.label.color.g, settingsTable.textSettings.label.color.b, settingsTable.textSettings.label.color.a)
+	labelControl:SetScale(settingsTable.textSettings.label.textScale)
+	labelControl:ClearAnchors()
+	labelControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.label.x, settingsTable.textSettings.label.y)
+
+	barControl:SetValue(0)
+	durationControl:SetText(0)
+
+	if settingsTable.textSettings.label.labelType == "Ability Name" then
+		labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
+	elseif settingsTable.textSettings.label.labelType == "Unit Name" then
+		labelControl:SetText(GetUnitName(unitTag))
+	end
+
+	if settingsTable.overrideTexturePath == "" then
+		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+	else
+		textureControl:SetTexture(settingsTable.overrideTexture)
+	end
+
+	-- Start the animation if event has already passed.
+	local buffList = {}
+	for i = 1, GetNumBuffs(unitTag) do
+		local _, s, e, _, _, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
+		buffList[tostring(abilityId)] = {endTime=e, startTime = s}
+	end
+	for k, v in pairs(settingsTable.abilityIDs) do
+		if buffList[v] then
+			textureControl:SetTexture(GetAbilityIcon(v))
+			if settingsTable.textSettings.label.labelType == "Ability Name" then
+				labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
+			elseif settingsTable.textSettings.label.labelType == "Unit Name" then
+				labelControl:SetText(GetUnitName(unitTag))
+			end
+			for i = 1, animation:GetNumAnimations() do 
+				animation:GetAnimation(i):SetDuration((buffList[v].endTime - buffList[v].startTime)*1000)
+			end
+			animation:PlayFromStart(GetGameTimeMilliseconds()-buffList[v].startTime*1000)
+			return
+		end
+	end
+
+	if unitTag == "reticleover" then
+		EVENT_MANAGER:RegisterForEvent(GET.name..topLevelControl:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
+			if DoesUnitExist(unitTag) then
+				local buffList = {}
+				for i = 1, GetNumBuffs(unitTag) do
+					local _, s, e, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
+					buffList[tostring(abilityId)] = {endTime=e, startTime = s}
+				end
+				for k, v in pairs(settingsTable.abilityIDs) do
+					if buffList[v] then
+						textureControl:SetTexture(GetAbilityIcon(v))
+						if settingsTable.textSettings.label.labelType == "Ability Name" then
+							labelControl:SetText(GetAbilityName(v))
+						elseif settingsTable.textSettings.label.labelType == "Unit Name" then
+							labelControl:SetText(GetUnitName(unitTag))
+						end
+						for i = 1, animation:GetNumAnimations() do 
+							animation:GetAnimation(i):SetDuration((buffList[v].endTime - buffList[v].startTime)*1000)
+						end
+						animation:PlayFromStart(GetGameTimeMilliseconds()-buffList[v].startTime*1000)
+						return
+					end
+				end
+
+				textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+				if settingsTable.textSettings.label.labelType == "Ability Name" then
+					labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
+				elseif settingsTable.textSettings.label.labelType == "Unit Name" then
+					labelControl:SetText(GetUnitName(unitTag))
+				end
+				animation:PlayInstantlyToEnd()
+			end
+		end)
+	end
+	EVENT_MANAGER:RegisterForEvent(GET.name.. topLevelControl:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, _) 
+		if changeType == EFFECT_RESULT_GAINED then
+			--constructor start/end times aren't reliable.
+			local buffList = {}
+			for i = 1, GetNumBuffs(unitTag) do
+				local _, s, e, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
+				buffList[tostring(abilityId)] = {endTime=e, startTime = s}
+			end
+			for k, v in pairs(settingsTable.abilityIDs) do
+				if buffList[v] then
+					textureControl:SetTexture(GetAbilityIcon(v))
+					if settingsTable.textSettings.label.labelType == "Ability Name" then
+						labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
+					elseif settingsTable.textSettings.label.labelType == "Unit Name" then
+						labelControl:SetText(GetUnitName(unitTag))
+					end
+					for i = 1, animation:GetNumAnimations() do 
+						animation:GetAnimation(i):SetDuration((buffList[v].endTime - buffList[v].startTime)*1000)
+					end
+					animation:PlayFromStart(GetGameTimeMilliseconds()-buffList[v].startTime*1000)
+					return
+				end
+			end
+		end
+	end)
+	EVENT_MANAGER:AddFilterForEvent(GET.name.. topLevelControl:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
+
+	return settingsTable.control
+end
+
 function GET.InitSingleDisplay(settingsTable)
 
 	local unitTag = nil
@@ -69,191 +272,47 @@ function GET.InitSingleDisplay(settingsTable)
 	elseif settingsTable.targetType == "Reticle Target" then
 		unitTag = "reticleover"
 	elseif settingsTable.targetType == "Boss" then
-		unitTag = {"boss1","boss2","boss3","boss4","boss5","boss6","boss7","boss8","boss9","boss10","boss11","boss12",}
+		unitTag = "boss"
 	elseif settingsTable.targetType == "Group" then
-		unitTag = {"group1","group2","group3","group4","group5","group6","group7","group8","group9","group10","group11","group12",}
+		unitTag = "group"
 	end
 
-	if settingsTable.control then 
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.control:GetName(), EVENT_EFFECT_CHANGED)
-		EVENT_MANAGER:UnregisterForUpdate(GET.name..settingsTable.control:GetName())
-	end 
-
-	if type(unitTag) == "string" then
+	if unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Simple" then
-			--Create controls and assign default values
-
-			local simpleDurationControl = settingsTable.control
-			if not simpleDurationControl then
-				simpleDurationControl = CreateControlFromVirtual(settingsTable.name, GuiRoot, "SingleSimpleTracker", "SingleSimple")
-				settingsTable.control = simpleDurationControl
-			end
-			simpleDurationControl:ClearAnchors()
-			simpleDurationControl:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-			simpleDurationControl:SetScale(settingsTable.scale)
-			local textureControl = simpleDurationControl:GetNamedChild("Texture")
-			local durationControl = simpleDurationControl:GetNamedChild("Duration")
-			local stackControl = simpleDurationControl:GetNamedChild("Stacks")
-
-			durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
-			durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
-			durationControl:SetScale(settingsTable.textSettings.duration.textScale)
-			durationControl:ClearAnchors()
-			durationControl:SetAnchor(CENTER, simpleDurationControl, CENTER, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
-			
-			stackControl:SetHidden(settingsTable.textSettings.stacks.hidden)
-			stackControl:SetColor(settingsTable.textSettings.stacks.color.r, settingsTable.textSettings.stacks.color.g, settingsTable.textSettings.stacks.color.b, settingsTable.textSettings.stacks.color.a)
-			stackControl:SetScale(settingsTable.textSettings.stacks.textScale)
-			stackControl:ClearAnchors()
-			stackControl:SetAnchor(TOPRIGHT, simpleDurationControl, TOPRIGHT, settingsTable.textSettings.stacks.x - 5, settingsTable.textSettings.stacks.y)
-
-			if settingsTable.overrideTexturePath == "" then
-				textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
-			else
-				textureControl:SetTexture(settingsTable.overrideTexture)
-			end
-
-			EVENT_MANAGER:RegisterForUpdate(GET.name..simpleDurationControl:GetName(), 100, function()
-				if DoesUnitExist(unitTag) then
-					local buffList = {}
-					for i = 1, GetNumBuffs(unitTag) do
-						local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
-						buffList[tostring(abilityId)] = {endTime=endTime, stacks=stacks}
-					end
-					for k, v in pairs(settingsTable.abilityIDs) do
-						if buffList[v] then
-							local time = zo_roundToZero(((1000*buffList[v].endTime)-GetGameTimeMilliseconds())/1000)
-							if time < 0 then time = "" end --permanent effects
-							durationControl:SetText(time)
-							stackControl:SetText(buffList[v].stacks)
-							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(v))
-							end
-							return
-						end
-					end
-					--No active effects
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
-					durationControl:SetText("")
-					stackControl:SetText("")
-				end
-			end)
-
+			InitSimple(settingsTable, unitTag)
 		elseif settingsTable.type == "Bar" then
-			--Status bar control
+			InitBar(settingsTable, unitTag)
+		end
+	elseif unitTag == "boss" or unitTag == "group"
+		if settingsTable.type == "Simple" then
+			-- If a group member gets a buff, assign them an object and store the key here.
+			-- e.g group4 gets object 6 -> groupTrackers[4] = 6
+			local groupTrackerKeyMapping = {}
 
-			local topLevelControl = settingsTable.control
-			local animation = settingsTable.animation
-			if not topLevelControl then
-				topLevelControl = CreateControlFromVirtual(settingsTable.name, GuiRoot, "SingleBarDuration", "SingleBar")
-				settingsTable.control = topLevelControl
-				animation = GetAnimationManager():CreateTimelineFromVirtual("SingleBarAnimation", topLevelControl:GetNamedChild("Bar"))
-				settingsTable.animation = animation
-			end
-			topLevelControl:ClearAnchors()
-			topLevelControl:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-			topLevelControl:SetScale(settingsTable.scale)
+			-- Append new object keys; remove released keys. Maintain ordering and display in this order.
+			local heldKeys = {}
 
-			local textureControl = topLevelControl:GetNamedChild("Texture")
-			local barControl = topLevelControl:GetNamedChild("Bar")
-			local labelControl = barControl:GetNamedChild("Label")
-			local durationControl = barControl:GetNamedChild("Duration")
-
-
-			durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
-			durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
-			durationControl:SetScale(settingsTable.textSettings.duration.textScale)
-			durationControl:ClearAnchors()
-			durationControl:SetAnchor(RIGHT, barControl:GetNamedChild("Background"), RIGHT, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
-
-			labelControl:SetHidden(settingsTable.textSettings.label.hidden)
-			labelControl:SetColor(settingsTable.textSettings.label.color.r, settingsTable.textSettings.label.color.g, settingsTable.textSettings.label.color.b, settingsTable.textSettings.label.color.a)
-			labelControl:SetScale(settingsTable.textSettings.label.textScale)
-			labelControl:ClearAnchors()
-			labelControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.label.x, settingsTable.textSettings.label.y)
-
-			barControl:SetValue(0)
-			durationControl:SetText(0)
-
-			if settingsTable.textSettings.label.labelType == "Ability Name" then
-				labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
-			elseif settingsTable.textSettings.label.labelType == "Unit Name" then
-				labelControl:SetText(GetUnitName(unitTag))
-			end
-
-			if settingsTable.overrideTexturePath == "" then
-				textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
-			else
-				textureControl:SetTexture(settingsTable.overrideTexture)
-			end
-
-			if unitTag == "reticleover" then
-				EVENT_MANAGER:RegisterForEvent(GET.name..topLevelControl:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
-					if DoesUnitExist(unitTag) then
-						local buffList = {}
-						for i = 1, GetNumBuffs(unitTag) do
-							local _, s, e, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
-							buffList[tostring(abilityId)] = {endTime=e, startTime = s}
-						end
-						for k, v in pairs(settingsTable.abilityIDs) do
-							if buffList[v] then
-								textureControl:SetTexture(GetAbilityIcon(v))
-								if settingsTable.textSettings.label.labelType == "Ability Name" then
-									labelControl:SetText(GetAbilityName(v))
-								elseif settingsTable.textSettings.label.labelType == "Unit Name" then
-									labelControl:SetText(GetUnitName(unitTag))
-								end
-								for i = 1, animation:GetNumAnimations() do 
-									animation:GetAnimation(i):SetDuration((buffList[v].endTime - buffList[v].startTime)*1000)
-								end
-								animation:PlayFromStart(GetGameTimeMilliseconds()-buffList[v].startTime*1000)
-								return
-							end
-						end
-
-						
-						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
-						if settingsTable.textSettings.label.labelType == "Ability Name" then
-							labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
-						elseif settingsTable.textSettings.label.labelType == "Unit Name" then
-							labelControl:SetText(GetUnitName(unitTag))
-						end
-						animation:PlayInstantlyToEnd()
-					end
-				end)
-			end
-			EVENT_MANAGER:RegisterForEvent(GET.name.. topLevelControl:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, _) 
-				if changeType == EFFECT_RESULT_GAINED and tag == unitTag then
+			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.name..settingsTable.type..settingsTable.targetType, EVENT_EFFECT_CHANGED, function()
+				if changeType == EFFECT_RESULT_GAINED then
 					--constructor start/end times aren't reliable.
 					local buffList = {}
 					for i = 1, GetNumBuffs(unitTag) do
-						local _, s, e, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
+						local _, s, e, _, _, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
 						buffList[tostring(abilityId)] = {endTime=e, startTime = s}
 					end
 					for k, v in pairs(settingsTable.abilityIDs) do
 						if buffList[v] then
-							textureControl:SetTexture(GetAbilityIcon(v))
-							if settingsTable.textSettings.label.labelType == "Ability Name" then
-								labelControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
-							elseif settingsTable.textSettings.label.labelType == "Unit Name" then
-								labelControl:SetText(GetUnitName(unitTag))
-							end
-							for i = 1, animation:GetNumAnimations() do 
-								animation:GetAnimation(i):SetDuration((buffList[v].endTime - buffList[v].startTime)*1000)
-							end
-							animation:PlayFromStart(GetGameTimeMilliseconds()-buffList[v].startTime*1000)
-							return
+							--create control. settingsTable.controls becomes table I guess. Maybe create a top level control to anchor them in?
 						end
 					end
+				elseif changeType == EFFECT_RESULT_FADED then
+					--check for other effects
+					--release control if not
 				end
 			end)
-		end
-	else
-		if settingsTable.type == "Simple" then
-
+			EVENT_MANAGER:AddFilterForEvent(GET.name.. topLevelControl:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 		elseif settingsTable.type == "Bar" then
-			--Status bar control
+			
 		end
 	end
 end
@@ -284,7 +343,6 @@ function GET.Initialize()
 			control:SetHidden(true)
 			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
 			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
-			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 	end)
 	GET.barPool:SetCustomResetBehavior(function(control)
 		for k, v  in pairs(GET.savedVariables.trackerList) do
@@ -310,8 +368,6 @@ function GET.Initialize()
 	GET.simplePool = ZO_ControlPool:New("SingleSimpleTracker", GuiRoot)
     GET.simplePool:SetResetFunction(function(control)
 			control:SetHidden(true)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
 			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 	end)
 	GET.simplePool:SetCustomResetBehavior(function(control)
