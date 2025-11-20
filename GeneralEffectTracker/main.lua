@@ -2,16 +2,13 @@ GET = GET or {}
 GET.name = "GeneralEffectTracker"
 
 GET.defaults = {
-    trackerList = {
-        {
-
-		},
-    }
 }
 --[[
 local newTracker = {
 	control = nil,
+	controlKey = nil,
 	animation = nil,
+	animationKey = nil,
 	name = "",
 	type = "Simple",
 	targetType = "Player",
@@ -87,7 +84,7 @@ function GET.InitSingleDisplay(settingsTable)
 		if settingsTable.type == "Simple" then
 			--Create controls and assign default values
 
-			local simpleDurationControl =settingsTable.control
+			local simpleDurationControl = settingsTable.control
 			if not simpleDurationControl then
 				simpleDurationControl = CreateControlFromVirtual(settingsTable.name, GuiRoot, "SingleSimpleTracker", "SingleSimple")
 				settingsTable.control = simpleDurationControl
@@ -281,6 +278,52 @@ end
 
 function GET.Initialize()
 	GET.savedVariables = ZO_SavedVars:NewAccountWide("GETSavedVariables", 1, nil, GET.defaults, GetWorldName())
+
+    GET.barPool = ZO_ControlPool:New("SingleBarDuration", GuiRoot)
+    GET.barPool:SetResetFunction(function(control)
+			control:SetHidden(true)
+			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
+			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
+			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+	end)
+	GET.barPool:SetCustomResetBehavior(function(control)
+		for k, v  in pairs(GET.savedVariables.trackerList) do
+			if v.control == control then
+				v.control = nil
+				v.controlKey = nil
+				break
+			end
+		end
+	end)
+
+	GET.barAnimationPool = ZO_AnimationPool:New("SingleBarAnimation")
+	GET.barAnimationPool:SetCustomResetBehavior(function(animation)
+		for k, v  in pairs(GET.savedVariables.trackerList) do
+			if v.animation == animation then
+				v.animation = nil
+				v.animationKey = nil
+				break
+			end
+		end
+	end)
+
+	GET.simplePool = ZO_ControlPool:New("SingleSimpleTracker", GuiRoot)
+    GET.simplePool:SetResetFunction(function(control)
+			control:SetHidden(true)
+			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
+			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
+			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+	end)
+	GET.simplePool:SetCustomResetBehavior(function(control)
+		for k, v  in pairs(GET.savedVariables.trackerList) do
+			if v.control == control then
+				v.control = nil
+				v.controlKey = nil
+				break
+			end
+		end
+	end)
+
 
     GET.InitSettings()
 

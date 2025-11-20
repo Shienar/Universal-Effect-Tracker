@@ -14,7 +14,9 @@ local editIndex = -1
 -- These are default values for a new tracker.
 local newTracker = {
 	control = nil,
+	controlKey = nil,
 	animation = nil,
+	animationKey = nil,
 	name = "",
 	type = "Simple",
 	targetType = "Player",
@@ -197,7 +199,9 @@ function GET.InitSettings()
 			--reset local variables
 			newTracker = {
 				control = nil,
+				controlKey = nil,
 				animation = nil,
+				animationKey = nil,
 				name = "",
 				type = "Simple",
 				targetType = "Player",
