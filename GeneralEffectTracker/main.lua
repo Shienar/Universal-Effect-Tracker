@@ -283,7 +283,7 @@ function GET.InitSingleDisplay(settingsTable)
 		elseif settingsTable.type == "Bar" then
 			InitBar(settingsTable, unitTag)
 		end
-	elseif unitTag == "boss" or unitTag == "group"
+	elseif unitTag == "boss" or unitTag == "group" then
 		if settingsTable.type == "Simple" then
 			-- If a group member gets a buff, assign them an object and store the key here.
 			-- e.g group4 gets object 6 -> groupTrackers[4] = 6
