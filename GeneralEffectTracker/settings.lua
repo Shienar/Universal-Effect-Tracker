@@ -45,7 +45,7 @@ local newTracker = {
 			y = 0,
 			hidden = false,
 		},
-		label = {
+		abilityLabel = {
 			color = {
 				r = 1,
 				g = 1,
@@ -56,7 +56,18 @@ local newTracker = {
 			x = 5,
 			y = 0,
 			hidden = false,
-			labelType = "Ability Name",
+		},
+		unitLabel = {
+			color = {
+				r = 1,
+				g = 1,
+				b = 1,
+				a = 1,
+			},
+			textScale = 1,
+			x = 5,
+			y = 0,
+			hidden = false,
 		},
 	},
 	abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
@@ -115,7 +126,8 @@ function GET.InitSettings()
 	local add1AbilityID, remove1AbilityID = nil, nil
 	local deleteTracker = nil
 	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
-	local hideLabel, labelFontColor, labelFontScale, labelXOffset, labelYOffset, setLabelType = nil, nil, nil, nil, nil, nil
+	local hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset  = nil, nil, nil, nil, nil
+	local hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset  = nil, nil, nil, nil, nil
 
 	---------------------------------------
 	---				Labels				---
@@ -130,7 +142,8 @@ function GET.InitSettings()
 	local textSettingsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Text",}
 	local durationLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Duration",}
 	local stacksLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Stacks",}
-	local nameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Name",}
+	local abilityNameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Ability Name",}
+	local unitNameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Unit Name",}
 	local printLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Print",}
 
 	
@@ -183,12 +196,14 @@ function GET.InitSettings()
 							local stacksIndex = settings:GetIndexOf(stacksLabel, true)
 							if stacksIndex then
 								settings:RemoveSettings(stacksIndex, 6, false)
-								settings:AddSettings({nameLabel, hideLabel, labelFontColor, labelFontScale, labelXOffset, labelYOffset, setLabelType}, stacksIndex, false)
+								settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
+														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
+														stacksIndex, false)
 							end
 						else
-							local nameIndex = settings:GetIndexOf(nameLabel, true)
+							local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
 							if nameIndex then
-								settings:RemoveSettings(nameIndex, 7, false)
+								settings:RemoveSettings(nameIndex, 12, false)
 								settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
 							end
 						end
@@ -241,7 +256,7 @@ function GET.InitSettings()
 						y = 0,
 						hidden = false,
 					},
-					label = {
+					abilityLabel = {
 						color = {
 							r = 1,
 							g = 1,
@@ -252,7 +267,18 @@ function GET.InitSettings()
 						x = 5,
 						y = 0,
 						hidden = false,
-						labelType = "Ability Name",
+					},
+					unitLabel = {
+						color = {
+							r = 1,
+							g = 1,
+							b = 1,
+							a = 1,
+						},
+						textScale = 1,
+						x = 5,
+						y = 0,
+						hidden = false,
 					},
 				},
 				abilityIDs = { --abilityIDs are values
@@ -356,12 +382,14 @@ function GET.InitSettings()
 				local stacksIndex = settings:GetIndexOf(stacksLabel, true)
 				if stacksIndex then
 					settings:RemoveSettings(stacksIndex, 6, false)
-					settings:AddSettings({nameLabel, hideLabel, labelFontColor, labelFontScale, labelXOffset, labelYOffset, setLabelType}, stacksIndex, false)
+					settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
+											unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
+										stacksIndex, false)
 				end
 			else
-				local nameIndex = settings:GetIndexOf(nameLabel, true)
+				local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
 				if nameIndex then
-					settings:RemoveSettings(nameIndex, 7, false)
+					settings:RemoveSettings(nameIndex, 12, false)
 					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
 				end
 			end
@@ -592,9 +620,14 @@ function GET.InitSettings()
 			newTracker.textSettings.duration.x  = value
 			if newTracker.control then
 				local child = newTracker.control:GetNamedChild("Duration")
-				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
-				child:ClearAnchors()
-				child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				if not child then 
+					child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") 
+					child:ClearAnchors()
+					child:SetAnchor(RIGHT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				else
+					child:ClearAnchors()
+					child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				end
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -615,9 +648,14 @@ function GET.InitSettings()
 			newTracker.textSettings.duration.y = value
 			if newTracker.control then
 				local child = newTracker.control:GetNamedChild("Duration")
-				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
-				child:ClearAnchors()
-				child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				if not child then 
+					child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") 
+					child:ClearAnchors()
+					child:SetAnchor(RIGHT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				else
+					child:ClearAnchors()
+					child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+				end
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -719,112 +757,196 @@ function GET.InitSettings()
 		default = newTracker.textSettings.stacks.y
 	}
 
-	hideLabel = {
+	hideAbilityLabel = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
-		label = "Hide Label",
-		tooltip = "Disables the name label dissplay.",
-		getFunction = function() return newTracker.textSettings.label.hidden end,
+		label = "Hide Ability Label",
+		tooltip = "Disables the Ability Name label display.",
+		getFunction = function() return newTracker.textSettings.abilityLabel.hidden end,
 		setFunction = function(value) 
-			newTracker.textSettings.label.hidden = value 
+			newTracker.textSettings.abilityLabel.hidden = value 
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetHidden(value)
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
+				temporarilyShowControl(editIndex)
 			end
 		end,
-		default = newTracker.textSettings.label.hidden
+		default = newTracker.textSettings.abilityLabel.hidden
 	}
 
-	labelFontColor = {
+	abilityLabelFontColor = {
 		type = LibHarvensAddonSettings.ST_COLOR,
-		label = "Label Text Color",
-		tooltip = "Choose the label's text color",
+		label = "Ability Label Text Color",
+		tooltip = "Choose the ability label's text color",
 		getFunction = function() 
-			return newTracker.textSettings.label.color.r, newTracker.textSettings.label.color.g, 
-				newTracker.textSettings.label.color.b, newTracker.textSettings.label.color.a 
+			return newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, 
+				newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a 
 		end,
 		setFunction = function(r, g, b, a) 
-			newTracker.textSettings.label.color = {r = r, g = g, b = b, a = a}
+			newTracker.textSettings.abilityLabel.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetColor(newTracker.textSettings.label.color.r, newTracker.textSettings.label.color.g, newTracker.textSettings.label.color.b, newTracker.textSettings.label.color.a  )
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
 				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = {1, 1, 1, 1}
 	}
 
-	labelFontScale = {
+	abilityLabelFontScale = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
-		label = "Label Text Scale",
+		label = "Ability Label Text Scale",
 		tooltip = "Modifies the label's text size.\n",
 		min = 0.1,
 		max = 5,
 		step = 0.1,
 		format = "%.1f", 
 		unit = "",
-		getFunction = function() return newTracker.textSettings.label.textScale end,
+		getFunction = function() return newTracker.textSettings.abilityLabel.textScale end,
 		setFunction = function(value)
-			newTracker.textSettings.label.textScale = value
+			newTracker.textSettings.abilityLabel.textScale = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetScale(newTracker.textSettings.label.textScale)
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
 				temporarilyShowControl(editIndex)
 			end
 		end,
-		default = newTracker.textSettings.label.textScale
+		default = newTracker.textSettings.abilityLabel.textScale
 	}
 
-	labelXOffset = {
+	abilityLabelXOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
-		label = "X Offset",
+		label = "Ability Label X Offset",
 		tooltip = "Modifies the label's X Offset.",
 		min = -100,
 		max = 100,
 		step = 1,
 		format = "%.0f",  -- No decimal places
 		unit = "",
-		getFunction = function() return newTracker.textSettings.label.x end,
+		getFunction = function() return newTracker.textSettings.abilityLabel.x end,
 		setFunction = function(value) 
-			newTracker.textSettings.label.x  = value
+			newTracker.textSettings.abilityLabel.x = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):ClearAnchors()
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetAnchor(LEFT, "$(parent)Background", LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
-		default = newTracker.textSettings.label.x 
+		default = newTracker.textSettings.abilityLabel.x 
 	}
 
-	labelYOffset = {
+	abilityLabelYOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
-		label = "Y Offset",
+		label = "Ability Label Y Offset",
 		tooltip = "Modifies the label's Y Offset.",
 		min = -100,
 		max = 100,
 		step = 1,
 		format = "%.0f",  -- No decimal places
 		unit = "",
-		getFunction = function() return newTracker.textSettings.label.y end,
+		getFunction = function() return newTracker.textSettings.abilityLabel.y end,
 		setFunction = function(value) 
-			newTracker.textSettings.label.y = value
+			newTracker.textSettings.abilityLabel.y = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):ClearAnchors()
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetAnchor(LEFT, newTracker.control, LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
-		default = newTracker.textSettings.label.y
+		default = newTracker.textSettings.abilityLabel.y
 	}
 
-	setLabelType = {
-		type = LibHarvensAddonSettings.ST_DROPDOWN,
-		label = "Label Type",
-		tooltip = "",
-		items = {
-			{name = "Ability Name", data = 1},
-			{name = "Unit Name", data = 2},
-		},
-		getFunction = function() return newTracker.textSettings.label.labelType end,
-		setFunction = function(control, itemName, itemData) newTracker.textSettings.label.labelType = itemName end,
-		default = 1
+	hideunitLabel = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Hide Unit Label",
+		tooltip = "Disables the Unit Name label display.",
+		getFunction = function() return newTracker.textSettings.unitLabel.hidden end,
+		setFunction = function(value) 
+			newTracker.textSettings.unitLabel.hidden = value 
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.unitLabel.hidden
 	}
+
+	unitLabelFontColor = {
+		type = LibHarvensAddonSettings.ST_COLOR,
+		label = "Unit Label Text Color",
+		tooltip = "Choose the unit label's text color",
+		getFunction = function() 
+			return newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, 
+				newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a 
+		end,
+		setFunction = function(r, g, b, a) 
+			newTracker.textSettings.unitLabel.color = {r = r, g = g, b = b, a = a}
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = {1, 1, 1, 1}
+	}
+
+	unitLabelFontScale = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "Unit Label Text Scale",
+		tooltip = "Modifies the label's text size.\n",
+		min = 0.1,
+		max = 5,
+		step = 0.1,
+		format = "%.1f", 
+		unit = "",
+		getFunction = function() return newTracker.textSettings.unitLabel.textScale end,
+		setFunction = function(value)
+			newTracker.textSettings.unitLabel.textScale = value
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.unitLabel.textScale
+	}
+
+	unitLabelXOffset = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "Unit Label X Offset",
+		tooltip = "Modifies the label's X Offset.",
+		min = -100,
+		max = 100,
+		step = 1,
+		format = "%.0f",  -- No decimal places
+		unit = "",
+		getFunction = function() return newTracker.textSettings.unitLabel.x end,
+		setFunction = function(value) 
+			newTracker.textSettings.unitLabel.x  = value
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.unitLabel.x 
+	}
+
+	unitLabelYOffset = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "Unit Label Y Offset",
+		tooltip = "Modifies the label's Y Offset.",
+		min = -100,
+		max = 100,
+		step = 1,
+		format = "%.0f",  -- No decimal places
+		unit = "",
+		getFunction = function() return newTracker.textSettings.unitLabel.y end,
+		setFunction = function(value) 
+			newTracker.textSettings.unitLabel.y = value
+			if newTracker.control then
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+				temporarilyShowControl(editIndex)
+			end
+		end,
+		default = newTracker.textSettings.unitLabel.y
+	}
+
 -------------------------------------------------------------------------------------------
 
 	--Fancy back buttons.
@@ -884,7 +1006,7 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			for i = 1, GetNumBuffs("player") do
 				local buffName, _, _, _, _, iconFilename, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo("player", i) 
-				d(buffName.."(ID:"..abilityId..") ".."Texture="..iconFilename)
+				GET.chat:Print(buffName.." (ID:"..abilityId..") ".."Texture="..iconFilename)
 			end
 		end
 	}
@@ -898,12 +1020,12 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			zo_callLater(function() 
 					if not DoesUnitExist("reticleover") then
-					d("Player isn't looking at a unit.")
+					GET.chat:Print("Player isn't looking at a unit.")
 					return
 				end
 				for i = 1, GetNumBuffs("reticleover") do
 					local buffName, _, _, _, _, iconFilename, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo("reticleover", i) 
-					d(buffName.."(ID:"..abilityId..") ".."Texture="..iconFilename)
+					GET.chat:Print(buffName.." (ID:"..abilityId..") ".."Texture="..iconFilename)
 				end
 			end, 3000)
 		end
@@ -917,10 +1039,10 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			for x = 1, 12 do
 				if DoesUnitExist("boss"..x) then
-					d(zo_strformat(GetUnitName("boss"..x)))
+					GET.chat:Print(zo_strformat(GetUnitName("boss"..x)))
 					for i = 1, GetNumBuffs("boss"..x) do
 						local buffName, _, _, _, _, iconFilename, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo("boss"..x, i) 
-						d(". "..buffName.."(ID:"..abilityId..") ".."Texture="..iconFilename)
+						GET.chat:Print(". "..buffName.." (ID:"..abilityId..") ".."Texture="..iconFilename)
 					end
 				end
 			end

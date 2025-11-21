@@ -4,7 +4,7 @@
 ## AddOnVersion: 1
 ## Version: 1
 ## IsLibrary: False
-## ConsoleDependsOn: LibHarvensAddonSettings>=20004
+## ConsoleDependsOn: LibHarvensAddonSettings>=20004 LibChatMessage
 ## SavedVariables: GETSavedVariables
 
 templates.xml

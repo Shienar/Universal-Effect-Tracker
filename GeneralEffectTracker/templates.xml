@@ -56,9 +56,13 @@
                             <Dimensions x="200" y="25" />
                             <Anchor point="RIGHT" relativeTo="$(parent)Background" relativePoint="RIGHT" offsetX="-5" offsetY="0" />
                         </Label>
-                        <Label name="$(parent)Label" hidden="false" text="Major Savagery" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="LEFT" verticalAlignment="TOP">
+                        <Label name="$(parent)AbilityName" hidden="false" text="Ability Name" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="LEFT" verticalAlignment="TOP">
                             <Dimensions x="200" y="25" />
                             <Anchor point="LEFT" relativeTo="$(parent)Background" relativePoint="LEFT" offsetX="5" offsetY="0" />
+                        </Label>
+                        <Label name="$(parent)UnitName" hidden="false" text="Unit Name" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="LEFT" verticalAlignment="BOTTOM">
+                            <Dimensions x="200" y="25" />
+                            <Anchor point="BOTTOMLEFT" relativeTo="$(parent)Background" relativePoint="TOPLEFT" offsetX="0" offsetY="0" />
                         </Label>
                     </Controls>
                 </StatusBar>
