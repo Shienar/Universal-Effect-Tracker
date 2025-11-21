@@ -11,9 +11,6 @@
                 </CustomAnimation>
             </Animations>
         </AnimationTimeline>
-        <AnimationTimeline name="SingleDurationAnimation" virtual="true">
-
-        </AnimationTimeline>
     </Animations>
 
     <Controls>

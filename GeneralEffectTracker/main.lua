@@ -3,66 +3,10 @@ GET.name = "GeneralEffectTracker"
 
 GET.defaults = {
 }
---[[
-local newTracker = {
-	control = nil,
-	controlKey = nil,
-	animation = nil,
-	animationKey = nil,
-	name = "",
-	type = "Simple",
-	targetType = "Player",
-	textSettings = {
-		duration = {
-			color = {
-				r = 1,
-				g = 1,
-				b = 1,
-				a = 1,
-			},
-			textScale = 1,
-			x = 0,
-			y = 0,
-			hidden = false,
-		},
-		stacks = {
-			color = {
-				r = 1,
-				g = 1,
-				b = 1,
-				a = 1,
-			},
-			textScale = 1,
-			x = -5,
-			y = 0,
-			hidden = false,
-		},
-		label = {
-			color = {
-				r = 1,
-				g = 1,
-				b = 1,
-				a = 1,
-			},
-			textScale = 1,
-			x = 0,
-			y = 0,
-			hidden = false,
-			labelType = "Ability Name",
-		},
-	},
-	abilityIDs = {
-		[0] = "",
-	},
-	hashedAbilityIDs = { --abilityIDs are keys
 
-	},
-	overrideTexturePath = "",
-	x = 0,
-	y = 0,
-	scale = 1,
+GET.unitIDs = {
+	
 }
-]]
 
 local function InitSimple(settingsTable, unitTag)
 	--Create controls and assign default values
@@ -195,7 +139,58 @@ local function InitSimple(settingsTable, unitTag)
 			end
 		end)
 	else
-		-- todo: EVENT_COMBAT_EVENT. - can't track reticleover unittag accurately for it, but I don't think it will matter much.
+		-- Track internal effects. (Thanks code65536 for making me aware of these)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
+			if unitTag == GET.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
+				-- Only track effects not affected by event_effect_changed
+				for i = 1, GetNumBuffs(unitTag) do
+					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
+					if abilityID == buffID then return end
+				end
+
+				if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
+					-- Can't get stack information, assume no stacks.
+					stackControl:SetText("")
+
+					if settingsTable.overrideTexturePath == "" then
+						textureControl:SetTexture(GetAbilityIcon(abilityID))
+					else
+						textureControl:SetTexture(settingsTable.overrideTexture)
+					end
+
+					local endTime = GetGameTimeMilliseconds() + hitValue
+					EVENT_MANAGER:RegisterForUpdate(GET.name..settingsTable.control:GetName(), 100, function()
+						local duration = (endTime-GetGameTimeMilliseconds())/1000
+						if duration < 0 then
+							--Effect Expired
+							if settingsTable.overrideTexturePath == "" then
+								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+							else
+								textureControl:SetTexture(settingsTable.overrideTexture)
+							end
+							durationControl:SetText("")
+							stackControl:SetText("")
+							EVENT_MANAGER:UnregisterForUpdate(GET.name..settingsTable.control:GetName())
+						else
+							if duration < 2 then
+								durationControl:SetText(zo_roundToNearest(duration, 0.1))
+							else
+								durationControl:SetText(zo_roundToZero(duration))
+							end
+						end
+					end)
+				elseif result == ACTION_RESULT_EFFECT_FADED then
+					if settingsTable.overrideTexturePath == "" then
+						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+					else
+						textureControl:SetTexture(settingsTable.overrideTexture)
+					end
+					durationControl:SetText("")
+					stackControl:SetText("")
+					EVENT_MANAGER:UnregisterForUpdate(GET.name..settingsTable.control:GetName())
+				end	
+			end
+		end)
 	end
 
 	EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.control:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, _)
@@ -300,7 +295,11 @@ local function InitBar(settingsTable, unitTag)
 		for i = 1, GetNumBuffs(unitTag) do
 			local _, startTime, endTime, _, _, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
 			if settingsTable.hashedAbilityIDs[abilityId] then
-				textureControl:SetTexture(GetAbilityIcon(abilityId))
+				if settingsTable.overrideTexturePath == "" then
+					textureControl:SetTexture(GetAbilityIcon(abilityId))
+				else
+					textureControl:SetTexture(settingsTable.overrideTexture)
+				end
 				if settingsTable.textSettings.label.labelType == "Ability Name" or not DoesUnitExist(unitTag) then
 					labelControl:SetText(GetAbilityName(abilityId))
 				elseif settingsTable.textSettings.label.labelType == "Unit Name" then
@@ -321,7 +320,11 @@ local function InitBar(settingsTable, unitTag)
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, startTime, endTime, _, _, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
 					if settingsTable.hashedAbilityIDs[abilityId] then
-						textureControl:SetTexture(GetAbilityIcon(abilityId))
+						if settingsTable.overrideTexturePath == "" then
+							textureControl:SetTexture(GetAbilityIcon(abilityId))
+						else
+							textureControl:SetTexture(settingsTable.overrideTexture)
+						end
 						if settingsTable.textSettings.label.labelType == "Ability Name" then
 							labelControl:SetText(GetAbilityName(abilityId))
 						elseif settingsTable.textSettings.label.labelType == "Unit Name" then
@@ -350,15 +353,42 @@ local function InitBar(settingsTable, unitTag)
 			end
 		end)
 	else
-		-- todo: EVENT_COMBAT_EVENT. - can't track reticleover unittag accurately for it, but I don't think it will matter much.
-		-- player unitid on initialization
-		-- group unitid on group changes
-		-- boss unitid on boss changes
+		-- Track internal effects. (Thanks code65536 for making me aware of these)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
+			if unitTag == GET.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
+				-- Only track effects not affected by event_effect_changed
+				for i = 1, GetNumBuffs(unitTag) do
+					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
+					if abilityID == buffID then return end
+				end
+
+				if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
+					if settingsTable.overrideTexturePath == "" then
+						textureControl:SetTexture(GetAbilityIcon(abilityID))
+					else
+						textureControl:SetTexture(settingsTable.overrideTexture)
+					end
+					if settingsTable.textSettings.label.labelType == "Ability Name" then
+						labelControl:SetText(GetAbilityName(abilityID))
+					elseif settingsTable.textSettings.label.labelType == "Unit Name" then
+						labelControl:SetText(GetUnitName(unitTag))
+					end
+					for i = 1, settingsTable.animation:GetNumAnimations() do 
+						settingsTable.animation:GetAnimation(i):SetDuration(hitValue)
+					end
+					settingsTable.animation:PlayFromStart()
+				end
+			end
+		end)
 	end
 
 	EVENT_MANAGER:RegisterForEvent(GET.name.. settingsTable.control:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, _) 
 		if changeType ~= EFFECT_RESULT_FADED and settingsTable.hashedAbilityIDs[abilityID] then
-			textureControl:SetTexture(GetAbilityIcon(abilityID))
+			if settingsTable.overrideTexturePath == "" then
+				textureControl:SetTexture(GetAbilityIcon(abilityID))
+			else
+				textureControl:SetTexture(settingsTable.overrideTexture)
+			end
 			if settingsTable.textSettings.label.labelType == "Ability Name" then
 				labelControl:SetText(GetAbilityName(abilityID))
 			elseif settingsTable.textSettings.label.labelType == "Unit Name" then
@@ -404,22 +434,12 @@ function GET.InitSingleDisplay(settingsTable)
 			local heldKeys = {}
 
 			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.name..settingsTable.type..settingsTable.targetType, EVENT_EFFECT_CHANGED, function()
-				if changeType == EFFECT_RESULT_GAINED then
-					--constructor start/end times aren't reliable.
-					local buffList = {}
 					for i = 1, GetNumBuffs(unitTag) do
 						local _, s, e, _, _, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
-						buffList[tostring(abilityId)] = {endTime=e, startTime = s}
-					end
-					for k, v in pairs(settingsTable.abilityIDs) do
-						if buffList[v] then
-							--create control. settingsTable.controls becomes table I guess. Maybe create a top level control to anchor them in?
+						if settingsTable.hashedAbilityIDs[abilityId] then
+							
 						end
 					end
-				elseif changeType == EFFECT_RESULT_FADED then
-					--check for other effects
-					--release control if not
-				end
 			end)
 			EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.name..settingsTable.type..settingsTable.targetType, EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 		elseif settingsTable.type == "Bar" then
@@ -504,6 +524,17 @@ function GET.Initialize()
 	end
 
 	HUD_FRAGMENT:RegisterCallback("StateChange", fragmentChange)
+
+	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
+		if tag == "player" or string.find(tag, "group") or string.find(tag, "boss") then
+			GET.unitIDs[unitID] = tag
+		end
+	end)
+
+	local function resetIDList() GET.unitIDs = {} end
+	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)
+	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDClear", EVENT_GROUP_MEMBER_JOINED, resetIDList)
+	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDClear", EVENT_GROUP_MEMBER_LEFT, resetIDList)
 
 end
 
