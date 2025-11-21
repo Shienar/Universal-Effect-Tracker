@@ -29,7 +29,7 @@ local newTracker = {
 				a = 1,
 			},
 			textScale = 1,
-			x = 0,
+			x = -5,
 			y = 0,
 			hidden = false,
 		},
@@ -53,20 +53,31 @@ local newTracker = {
 				a = 1,
 			},
 			textScale = 1,
-			x = 0,
+			x = 5,
 			y = 0,
 			hidden = false,
 			labelType = "Ability Name",
 		},
 	},
-	abilityIDs = {
+	abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
 		[0] = "",
+	},
+	hashedAbilityIDs = { --abilityIDs are keys
+
 	},
 	overrideTexturePath = "",
 	x = 0,
 	y = 0,
 	scale = 1,
 }
+
+local function createHashedIDList(settingAbilityIDs)
+	local hashedAbilityIDs = {}
+	for k, v in pairs(settingAbilityIDs) do
+		hashedAbilityIDs[tonumber(v)] = true
+	end
+	return hashedAbilityIDs
+end
 
 local function loadMenu(menu, jumpToIndex)
 	if settings then
@@ -79,7 +90,7 @@ local function loadMenu(menu, jumpToIndex)
 end
 
 local function temporarilyShowControl(index) 
-    --Hide UI 5 seconds after most recent change.
+    --Hide control 5 seconds after most recent change.
 	local control = GET.savedVariables.trackerList[index].control
 	if control then
 		control:SetHidden(false)
@@ -214,7 +225,7 @@ function GET.InitSettings()
 							a = 1,
 						},
 						textScale = 1,
-						x = 0,
+						x = -5,
 						y = 0,
 						hidden = false,
 					},
@@ -238,14 +249,17 @@ function GET.InitSettings()
 							a = 1,
 						},
 						textScale = 1,
-						x = 0,
+						x = 5,
 						y = 0,
 						hidden = false,
 						labelType = "Ability Name",
 					},
 				},
-				abilityIDs = {
+				abilityIDs = { --abilityIDs are values
 					[0] = "",
+				},
+				hashedAbilityIDs = { --abilityIDs are keys
+
 				},
 				overrideTexturePath = "",
 				x = 0,
@@ -392,8 +406,7 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_EDIT,
 		label = "Ability ID",
 		tooltip = "Enter an abilityID for this tracker to track.\n\
-					Multiple abilityIDs can be tracked.\n\
-					abilityIDs will be searched for from top to bottom until one is found.",
+					Multiple abilityIDs can be tracked.\n",
 		textType = TEXT_TYPE_NUMERIC,
 		maxChars = 10,
 		getFunction = function() return newTracker.abilityIDs[0] end,
@@ -771,8 +784,8 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.label.x  = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):ClearAnchors()
-				newTracker.control:GetNamedChild("Label"):SetAnchor(LEFT, "$(parent)Background", LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):ClearAnchors()
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetAnchor(LEFT, "$(parent)Background", LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -792,8 +805,8 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.label.y = value
 			if newTracker.control then
-				newTracker.control:GetNamedChild("Label"):ClearAnchors()
-				newTracker.control:GetNamedChild("Label"):SetAnchor(LEFT, newTracker.control, LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):ClearAnchors()
+				newTracker.control:GetNamedChild("Bar"):GetNamedChild("Label"):SetAnchor(LEFT, newTracker.control, LEFT, newTracker.textSettings.label.x, newTracker.textSettings.label.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -827,6 +840,7 @@ function GET.InitSettings()
 			else
 				index = #GET.savedVariables.trackerList + 1
 			end
+			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
 			GET.savedVariables.trackerList[index] = {}
 			ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
 			GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.

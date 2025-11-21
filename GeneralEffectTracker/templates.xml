@@ -11,6 +11,9 @@
                 </CustomAnimation>
             </Animations>
         </AnimationTimeline>
+        <AnimationTimeline name="SingleDurationAnimation" virtual="true">
+
+        </AnimationTimeline>
     </Animations>
 
     <Controls>
@@ -54,11 +57,11 @@
                         </Backdrop>
                         <Label name="$(parent)Duration" hidden="false" text="0" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="RIGHT" verticalAlignment="CENTER">
                             <Dimensions x="200" y="25" />
-                            <Anchor point="RIGHT" relativeTo="$(parent)Background" relativePoint="RIGHT" offsetX="0" offsetY="0" />
+                            <Anchor point="RIGHT" relativeTo="$(parent)Background" relativePoint="RIGHT" offsetX="-5" offsetY="0" />
                         </Label>
                         <Label name="$(parent)Label" hidden="false" text="Major Savagery" font="$(GAMEPAD_BOLD_FONT)|18|soft-shadow-thick" color="FFFFFF" horizontalAlignment="LEFT" verticalAlignment="TOP">
                             <Dimensions x="200" y="25" />
-                            <Anchor point="LEFT" relativeTo="$(parent)Background" relativePoint="LEFT" offsetX="0" offsetY="0" />
+                            <Anchor point="LEFT" relativeTo="$(parent)Background" relativePoint="LEFT" offsetX="5" offsetY="0" />
                         </Label>
                     </Controls>
                 </StatusBar>
