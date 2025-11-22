@@ -67,8 +67,8 @@
                     </Controls>
                 </StatusBar>
                 <Texture name="$(parent)Texture" hidden="false" textureFile="/esoui/art/icons/icon_missing.dds">
-					<Dimensions x="25" y="25" />
-                    <Anchor point="RIGHT" relativeTo="$(parent)Bar" relativePoint="LEFT" offsetX="-10" offsetY="0" />
+					<Dimensions x="27" y="27" />
+                    <Anchor point="RIGHT" relativeTo="$(parent)Bar" relativePoint="LEFT" offsetX="-1" offsetY="0" />
                     <Controls>
                         <Texture name="$(parent)Frame" hidden="false" textureFile="EsoUI/Art/ActionBar/abilityFrame64_up.dds" layer="CONTROLS">
                             <AnchorFill />

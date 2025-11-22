@@ -3,10 +3,18 @@ GET.name = "GeneralEffectTracker"
 
 --[[
 	TODO LIST:
-		- Group/Boss buff panels.
-		- Differentiate global/per-character settings
-		- Allow for LibCombatAlerts Positioning.
-		- Extra settings page that allows players to load in presets
+		-- Group/Boss buff panels.
+			- Simple:
+				- Create a table. (new control)
+					- Header row is 1 column equal to the assigned tracker name.
+					- Column 1: Texture
+					- Column 2: Unit Name
+					- Column 3: Duration
+						- Add a stack indicator if applicable (e.g. x3)
+					- Row count is fixed  
+			- Bars:
+				- Obtain and release bars dynamically within an invisible top level control.
+		-- Extra settings page that allows players to load in presets
 			- Off balance
 			- Stagger
 			- Relentless Focus
@@ -15,13 +23,22 @@ GET.name = "GeneralEffectTracker"
 			- Alkosh
 			- Z'ens
 			- MK
+		-- Make the bar pretty
+			-- Bar background color settings
+			-- Bar border color settings
+			-- Bar Animation Color Settings
+		-- Allow for LibCombatAlerts Positioning.
+			- Only when editing existing
 ]]
 
 GET.defaults = {
+	trackerList = {
+
+	}
 }
 
 GET.unitIDs = {
-	
+
 }
 
 local function InitSimple(settingsTable, unitTag, control)
@@ -30,6 +47,7 @@ local function InitSimple(settingsTable, unitTag, control)
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
+	control:SetHidden(settingsTable.hidden)
 	local textureControl = control:GetNamedChild("Texture")
 	local durationControl = control:GetNamedChild("Duration")
 	local stackControl = control:GetNamedChild("Stacks")
@@ -251,6 +269,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
+	control:SetHidden(settingsTable.hidden)
 
 	local textureControl = control:GetNamedChild("Texture")
 	local barControl = control:GetNamedChild("Bar")
@@ -441,7 +460,12 @@ local function fragmentChange(oldState, newState)
 		--unhide everything.
 		for k, v in pairs(GET.savedVariables.trackerList) do
 			if v.control then
-				v.control:SetHidden(false)
+				v.control:SetHidden(v.hidden)
+			end
+		end
+		for k, v in pairs(GET.characterSavedVariables.trackerList) do
+			if v.control then
+				v.control:SetHidden(v.hidden)
 			end
 		end
 	elseif newState == SCENE_FRAGMENT_HIDDEN then
@@ -451,11 +475,17 @@ local function fragmentChange(oldState, newState)
 				v.control:SetHidden(true)
 			end
 		end
+		for k, v in pairs(GET.characterSavedVariables.trackerList) do
+			if v.control then
+				v.control:SetHidden(true)
+			end
+		end
 	end
 end
 
 function GET.Initialize()
 	GET.savedVariables = ZO_SavedVars:NewAccountWide("GETSavedVariables", 1, nil, GET.defaults, GetWorldName())
+	GET.characterSavedVariables = ZO_SavedVars:NewCharacterIdSettings("GETSavedVariables", 1, nil, GET.defaults, GetWorldName())
 
 	GET.chat = LibChatMessage("GET", "GET")
 
@@ -511,7 +541,10 @@ function GET.Initialize()
 
     GET.InitSettings()
 
-	for k, v in pairs	(GET.savedVariables.trackerList) do
+	for k, v in pairs (GET.savedVariables.trackerList) do
+		GET.InitSingleDisplay(v)
+	end
+	for k, v in pairs (GET.characterSavedVariables.trackerList) do
 		GET.InitSingleDisplay(v)
 	end
 

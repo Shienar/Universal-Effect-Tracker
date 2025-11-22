@@ -9,6 +9,7 @@ local settingPages = {
 }
 local currentPageIndex = 2
 local editIndex = -1
+local isCharacterSettings = false
 
 -- New/updated tracker settings. Local until "save"
 -- These are default values for a new tracker.
@@ -80,12 +81,15 @@ local newTracker = {
 	x = 0,
 	y = 0,
 	scale = 1,
+	hidden = false,
 }
 
 local function createHashedIDList(settingAbilityIDs)
 	local hashedAbilityIDs = {}
 	for k, v in pairs(settingAbilityIDs) do
-		hashedAbilityIDs[tonumber(v)] = true
+		if tonumber(v) ~= nil then
+			hashedAbilityIDs[tonumber(v)] = true
+		end
 	end
 	return hashedAbilityIDs
 end
@@ -102,12 +106,20 @@ end
 
 local function temporarilyShowControl(index) 
     --Hide control 5 seconds after most recent change.
-	local control = GET.savedVariables.trackerList[index].control
+	local control
+	local isHidden
+	if not isCharacterSettings then
+		control = GET.savedVariables.trackerList[index].control
+		isHidden = GET.savedVariables.trackerList[index].hidden
+	else
+		control = GET.characterSavedVariables.trackerList[index].control
+		isHidden = GET.characterSavedVariables.trackerList[index].hidden
+	end
 	if control then
 		control:SetHidden(false)
 		EVENT_MANAGER:RegisterForUpdate(GET.name.." move "..control:GetName(), 5000, function()
 			if SCENE_MANAGER:GetScene("hud"):GetState() == SCENE_HIDDEN then
-				control:SetHidden(true)
+				control:SetHidden(isHidden)
 			end
 			EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..control:GetName())
 		end)
@@ -125,6 +137,8 @@ function GET.InitSettings()
 	local setNewAbilityID = nil
 	local add1AbilityID, remove1AbilityID = nil, nil
 	local deleteTracker = nil
+	local copyToAccount, copyToCharacter = nil, nil
+	local setNewTrackerSaveType = nil
 	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
 	local hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset  = nil, nil, nil, nil, nil
 	local hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset  = nil, nil, nil, nil, nil
@@ -135,7 +149,8 @@ function GET.InitSettings()
 
 	local mainMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Main Menu",}
 	local navLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Navigation",}
-	local trackedListMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Current Trackers",}
+	local accountTrackersLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Account Trackers",}
+	local characterTrackersLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Character Trackers",}
 	local newTrackerMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Edit Tracker",}
 	local abilityIDListLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Tracked abilityIDs",}
 	local positionLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Position",}
@@ -160,8 +175,7 @@ function GET.InitSettings()
 			loadMenu(settingPages.trackedList, 2)
 			currentPageIndex = 2
 
-			--Tracker settings are in a table indexed from 0 to #trackers - 1
-			--Create settings on setting indexes 2 to #trackers + 1
+			--Account trackers
 			for k, v in pairs(GET.savedVariables.trackerList) do
 				settings:AddSetting({
 					type = LibHarvensAddonSettings.ST_BUTTON,
@@ -170,6 +184,7 @@ function GET.InitSettings()
 					tooltip = "Edit this tracker.",
 					clickHandler = function(control)
 						editIndex = k
+						isCharacterSettings = false
 						ZO_DeepTableCopy(GET.savedVariables.trackerList[editIndex], newTracker)
 						currentPageIndex = 2 + editIndex
 						loadMenu(settingPages.newTracker, 2)
@@ -208,12 +223,69 @@ function GET.InitSettings()
 							end
 						end
 
-						--Add the remove button
-						settings:AddSetting(deleteTracker, #settings.settings - 1, false)
+						--Add the remove and copy buttons
+						settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
 
 					end
-				}, #settings.settings, false)
+				}, #settings.settings - 2, false)
 			end
+
+			--Character trackers
+			for k, v in pairs(GET.characterSavedVariables.trackerList) do
+				settings:AddSetting({
+					type = LibHarvensAddonSettings.ST_BUTTON,
+					label = GET.characterSavedVariables.trackerList[k].name, 
+					buttonText = GET.characterSavedVariables.trackerList[k].name, 
+					tooltip = "Edit this tracker.",
+					clickHandler = function(control)
+						editIndex = k
+						isCharacterSettings = true
+						ZO_DeepTableCopy(GET.characterSavedVariables.trackerList[editIndex], newTracker)
+						currentPageIndex = 2 + editIndex
+						loadMenu(settingPages.newTracker, 2)
+
+						--dynamically add the extra ability IDs
+						for i = 1, (#GET.characterSavedVariables.trackerList[editIndex].abilityIDs) do
+							local newIndex = 7 + i
+							settings:AddSetting({
+								type = setNewAbilityID.type,
+								label = setNewAbilityID.label,
+								tooltip = setNewAbilityID.tooltip,
+								textType = setNewAbilityID.textType,
+								maxChars = setNewAbilityID.maxChars,
+								getFunction = function() return newTracker.abilityIDs[i] end,
+								setFunction = function(value) 
+									newTracker.abilityIDs[i] = value
+								end,
+								default = newTracker.abilityIDs[i]
+							}, newIndex, false)
+						end
+
+						--Modify settings as needed to fit tracker type
+						if newTracker.type == "Bar" then
+							local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+							if stacksIndex then
+								settings:RemoveSettings(stacksIndex, 6, false)
+								settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
+														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
+														stacksIndex, false)
+							end
+						else
+							local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
+							if nameIndex then
+								settings:RemoveSettings(nameIndex, 12, false)
+								settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+							end
+						end
+
+						--Add the remove button
+						settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
+
+					end
+				}, #settings.settings - 1, false)
+			end
+
+			LibHarvensAddonSettings.list:SetSelectedIndexWithoutAnimation(2)
 		end
 	}
 	local addNewTrackerButton = {
@@ -291,9 +363,13 @@ function GET.InitSettings()
 				x = 0,
 				y = 0,
 				scale = 1,
+				hidden = false,
 			}
 
 			loadMenu(settingPages.newTracker, 2)
+			settings:AddSetting(setNewTrackerSaveType, #settings.settings - 1, false)
+			isCharacterSettings = false
+
 			currentPageIndex = 3
 			editIndex = -1
 		end
@@ -342,13 +418,110 @@ function GET.InitSettings()
 				GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
 			end
 
-			--table.remove isn't saving changes for some reason -
-			if #GET.savedVariables.trackerList < (editIndex + 1) then
-				GET.savedVariables.trackerList[editIndex] = GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1]
+			--table.remove isn't saving changes for some reason
+			if not isCharacterSettings then
+				if #GET.savedVariables.trackerList < (editIndex + 1) then
+					GET.savedVariables.trackerList[editIndex] = GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1]
+				end
+				GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1] = nil
+			else
+				if #GET.characterSavedVariables.trackerList < (editIndex + 1) then
+					GET.characterSavedVariables.trackerList[editIndex] = GET.characterSavedVariables.trackerList[#GET.characterSavedVariables.trackerList - 1]
+				end
+				GET.characterSavedVariables.trackerList[#GET.characterSavedVariables.trackerList - 1] = nil
 			end
-			GET.savedVariables.trackerList[#GET.savedVariables.trackerList - 1] = nil
 
 			loadMenu(settingPages.mainMenu, currentPageIndex)
+		end
+	}
+
+	copyToAccount = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "COPY (ACCOUNT)",
+		buttonText = "COPY",
+		tooltip = "Creates a copy of the current tracker and saves it to your account's trackers.",
+		clickHandler = function(control)
+			local index = #GET.savedVariables.trackerList + 1
+			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
+
+			--Error checking
+			if newTracker.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your tracker.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+			if not next(newTracker.hashedAbilityIDs) then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter at least one ability ID for your tracker.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+
+			GET.savedVariables.trackerList[index] = {}
+			ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
+			GET.savedVariables.trackerList[index].control = nil
+			GET.savedVariables.trackerList[index].controlKey = nil
+			GET.savedVariables.trackerList[index].animation = nil
+			GET.savedVariables.trackerList[index].animationKey = nil
+			GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("You have successfully created a new copy of this tracker.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			--Don't load a new menu.
+		end
+	}
+
+	copyToCharacter = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "COPY (Character)",
+		buttonText = "COPY",
+		tooltip = "Creates a copy of the current tracker and saves it to your account's trackers.",
+		clickHandler = function(control)
+			local index = #GET.characterSavedVariables.trackerList + 1
+			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
+
+			--Error checking
+			if newTracker.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your tracker.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+			if not next(newTracker.hashedAbilityIDs) then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter at least one ability ID for your tracker.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+
+			GET.characterSavedVariables.trackerList[index] = {}
+			ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
+			GET.characterSavedVariables.trackerList[index].control = nil
+			GET.characterSavedVariables.trackerList[index].controlKey = nil
+			GET.characterSavedVariables.trackerList[index].animation = nil
+			GET.characterSavedVariables.trackerList[index].animationKey = nil
+			GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("You have successfully created a new copy of this tracker.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			--Don't load a new menu.
 		end
 	}
 
@@ -428,6 +601,23 @@ function GET.InitSettings()
 			end
 		end,
 		default = ""
+	}
+
+	local hideTracker = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Hide Tracker",
+		tooltip = "Hides the tracker without deleting it.",
+		getFunction = function() return newTracker.hidden end,
+		setFunction = function(value) 
+			newTracker.hidden = value 
+			if newTracker.control then
+				newTracker.control:SetHidden(value)
+				if value == false then
+					temporarilyShowControl(editIndex)
+				end
+			end
+		end,
+		default = newTracker.hidden
 	}
 
 	setNewAbilityID = {
@@ -949,6 +1139,25 @@ function GET.InitSettings()
 
 -------------------------------------------------------------------------------------------
 
+	setNewTrackerSaveType = {
+		type = LibHarvensAddonSettings.ST_DROPDOWN,
+		label = "Save Destination",
+		tooltip = "Choose where to save this tracker.",
+		items = {
+			{name = "Account", data = 1},
+			{name = "Character", data = 2},
+		},
+		getFunction = function() if isCharacterSettings then return "Character" else return "Account" end end,
+		setFunction = function(control, itemName, itemData)
+			if itemName == "Account" then
+				isCharacterSettings = false
+			elseif itemName == "Character" then
+				isCharacterSettings = true
+			end
+		end,
+		default = 1,
+	}
+
 	--Fancy back buttons.
 	local saveButton = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
@@ -959,13 +1168,41 @@ function GET.InitSettings()
 			local index
 			if editIndex >= 0 then
 				index = editIndex
-			else
+			elseif isCharacterSettings then
 				index = #GET.savedVariables.trackerList + 1
+			else
+				index = #GET.characterSavedVariables.trackerList + 1
 			end
 			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
-			GET.savedVariables.trackerList[index] = {}
-			ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
-			GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+
+			--Error checking
+			if newTracker.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your tracker.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+			if not next(newTracker.hashedAbilityIDs) then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter at least one ability ID for your tracker.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+
+			if not isCharacterSettings then
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
 			
 			loadMenu(settingPages.mainMenu, currentPageIndex)
 			editIndex = -1
@@ -979,16 +1216,28 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			loadMenu(settingPages.mainMenu, currentPageIndex)
 			if editIndex >= 0 then
-				if GET.savedVariables.trackerList[editIndex].type ~= newTracker.type then
-					if newTracker.type == "Simple" then
-						GET.simplePool:ReleaseObject(newTracker.controlKey)
-					elseif newTracker.type == "Bar" then
-						GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
-						GET.barPool:ReleaseObject(newTracker.controlKey)
+				if not isCharacterSettings then
+					if GET.savedVariables.trackerList[editIndex].type ~= newTracker.type then
+						if newTracker.type == "Simple" then
+							GET.simplePool:ReleaseObject(newTracker.controlKey)
+						elseif newTracker.type == "Bar" then
+							GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
+							GET.barPool:ReleaseObject(newTracker.controlKey)
+						end
 					end
+					GET.InitSingleDisplay(GET.savedVariables.trackerList[editIndex]) --Load old changes
+				else
+					if GET.characterSavedVariables.trackerList[editIndex].type ~= newTracker.type then
+						if newTracker.type == "Simple" then
+							GET.simplePool:ReleaseObject(newTracker.controlKey)
+						elseif newTracker.type == "Bar" then
+							GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
+							GET.barPool:ReleaseObject(newTracker.controlKey)
+						end
+					end
+					GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[editIndex]) --Load old changes
 				end
 
-				GET.InitSingleDisplay(GET.savedVariables.trackerList[editIndex]) --Load old changes
 			end
 			editIndex = -1
 		end
@@ -1054,8 +1303,8 @@ function GET.InitSettings()
 	---------------------------------------
 
 	settingPages.mainMenu = {mainMenuLabel, trackedListMenuButton, addNewTrackerButton, utilityMenuButton}
-	settingPages.trackedList = {trackedListMenuLabel, returnToMainMenuButton}
-	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, 
+	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
+	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, hideTracker,
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, remove1AbilityID, 
 									positionLabel, newScale, newXOffset, newYOffset,
 									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
