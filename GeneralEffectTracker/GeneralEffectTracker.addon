@@ -9,4 +9,5 @@
 
 templates.xml
 main.lua
+presets.lua
 settings.lua

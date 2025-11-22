@@ -160,6 +160,7 @@ function GET.InitSettings()
 	local abilityNameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Ability Name",}
 	local unitNameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Unit Name",}
 	local printLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Print",}
+	local presetLabel = {type = LibHarvensAddonSettings.ST_SECTION, label = "Presets"}
 
 	
 	---------------------------------------
@@ -716,9 +717,9 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Scale",
 		tooltip = "Modifies the tracker's size.\n",
-		min = 0.1,
+		min = 0.01,
 		max = 5,
-		step = 0.1,
+		step = 0.01,
 		format = "%.1f", 
 		unit = "",
 		getFunction = function() return newTracker.scale end,
@@ -778,9 +779,9 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Duration Text Scale",
 		tooltip = "Modifies the duration's text size.\n",
-		min = 0.1,
+		min = 0.01,
 		max = 5,
-		step = 0.1,
+		step = 0.01,
 		format = "%.1f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.duration.textScale end,
@@ -889,9 +890,9 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Stacks Text Scale",
 		tooltip = "Modifies the stack's text size.\n",
-		min = 0.1,
+		min = 0.01,
 		max = 5,
-		step = 0.1,
+		step = 0.01,
 		format = "%.1f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.stacks.textScale end,
@@ -984,9 +985,9 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Ability Label Text Scale",
 		tooltip = "Modifies the label's text size.\n",
-		min = 0.1,
+		min = 0.01,
 		max = 5,
-		step = 0.1,
+		step = 0.01,
 		format = "%.1f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.abilityLabel.textScale end,
@@ -1079,9 +1080,9 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Unit Label Text Scale",
 		tooltip = "Modifies the label's text size.\n",
-		min = 0.1,
+		min = 0.01,
 		max = 5,
-		step = 0.1,
+		step = 0.01,
 		format = "%.1f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.unitLabel.textScale end,
@@ -1168,7 +1169,7 @@ function GET.InitSettings()
 			local index
 			if editIndex >= 0 then
 				index = editIndex
-			elseif isCharacterSettings then
+			elseif not isCharacterSettings then
 				index = #GET.savedVariables.trackerList + 1
 			else
 				index = #GET.characterSavedVariables.trackerList + 1
@@ -1244,7 +1245,7 @@ function GET.InitSettings()
 	}
 
 	---------------------------------------
-	---			Utilities			---
+	---		Utilities (Print)			---
 	---------------------------------------
 	
 	local printCurrentEffects = {
@@ -1298,6 +1299,193 @@ function GET.InitSettings()
 		end
 	}
 
+
+	---------------------------------------
+	---		Utilities (Presets)			---
+	---------------------------------------
+
+	local offBalancePreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "OFF BALANCE",
+		buttonText = "LOAD",
+		tooltip = "Copies an off balance preset into the target save location.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.offBalance, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.offBalance, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded off balance preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local staggerPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "STAGGER",
+		buttonText = "LOAD",
+		tooltip = "Copies a stagger preset into the target save location.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.stagger, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.stagger, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded stagger preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local relentlessPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Relentless Focus",
+		buttonText = "LOAD",
+		tooltip = "Copies a relentless focus preset into the target save location.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.relentlessFocus, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.relentlessFocus, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded relentless focus preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local mercilessPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Merciless Resolve",
+		buttonText = "LOAD",
+		tooltip = "Copies a Merciless Resolve preset into the target save location.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.mercilessResolve, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.mercilessResolve, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded grim focus preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local alkoshPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Alkosh",
+		buttonText = "LOAD",
+		tooltip = "Copies an alkosh preset into the target save location.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.alkosh, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.alkosh, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded alkosh preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local mkPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Martial Knowledge",
+		buttonText = "LOAD",
+		tooltip = "Copies a martial knowledge preset into the target save location.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.mk, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.mk, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded martial Knowledge preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local synergyPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Resource Synergy",
+		buttonText = "LOAD",
+		tooltip = "This tracker will show the cooldown until you can take another combustion / shard synergy.",
+		clickHandler = function(control)
+			if not isCharacterSettings then
+				local index = #GET.savedVariables.trackerList + 1
+				GET.savedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.synergyCooldown, GET.savedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+			else
+				local index = #GET.characterSavedVariables.trackerList + 1
+				GET.characterSavedVariables.trackerList[index] = {}
+				ZO_DeepTableCopy(GET.presets.synergyCooldown, GET.characterSavedVariables.trackerList[index])
+				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded martial Knowledge preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
 	---------------------------------------
 	---			Menu Groupings			---
 	---------------------------------------
@@ -1310,7 +1498,9 @@ function GET.InitSettings()
 									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
 									navLabel, cancelButton, saveButton}
-	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, navLabel, returnToMainMenuButton}
+	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, 
+									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, synergyPreset,
+									navLabel, returnToMainMenuButton}
 
 	settings:AddSettings(settingPages.mainMenu)
 end

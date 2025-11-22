@@ -14,21 +14,13 @@ GET.name = "GeneralEffectTracker"
 					- Row count is fixed  
 			- Bars:
 				- Obtain and release bars dynamically within an invisible top level control.
-		-- Extra settings page that allows players to load in presets
-			- Off balance
-			- Stagger
-			- Relentless Focus
-			- Grim Focus
-			- EC
-			- Alkosh
-			- Z'ens
-			- MK
 		-- Make the bar pretty
 			-- Bar background color settings
 			-- Bar border color settings
 			-- Bar Animation Color Settings
 		-- Allow for LibCombatAlerts Positioning.
 			- Only when editing existing
+			- Just search for the y offsets of each type and add there.
 ]]
 
 GET.defaults = {
@@ -90,6 +82,7 @@ local function InitSimple(settingsTable, unitTag, control)
 						local duration = (endTime-GetGameTimeMilliseconds())/1000
 						if duration < 0 then
 							--Effect Expired
+							EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
 								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 							else
@@ -97,11 +90,9 @@ local function InitSimple(settingsTable, unitTag, control)
 							end
 							durationControl:SetText("")
 							stackControl:SetText("")
-							EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 						else
 							if duration < 2 then
 								durationControl:SetText(zo_roundToNearest(duration, 0.1))
-
 							else
 								durationControl:SetText(zo_roundToZero(duration))
 							end
@@ -132,6 +123,7 @@ local function InitSimple(settingsTable, unitTag, control)
 								local duration = (endTime-GetGameTimeMilliseconds())/1000
 								if duration < 0 then
 									--Effect Expired
+									EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 									if settingsTable.overrideTexturePath == "" then
 										textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 									else
@@ -139,7 +131,6 @@ local function InitSimple(settingsTable, unitTag, control)
 									end
 									durationControl:SetText("")
 									stackControl:SetText("")
-									EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 								else
 									if duration < 2 then
 										durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -154,6 +145,7 @@ local function InitSimple(settingsTable, unitTag, control)
 					end
 				end
 				--target doesn't have an effect.
+				EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 				else
@@ -161,7 +153,6 @@ local function InitSimple(settingsTable, unitTag, control)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
-				EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 			end
 		end)
 	else
@@ -189,6 +180,7 @@ local function InitSimple(settingsTable, unitTag, control)
 						local duration = (endTime-GetGameTimeMilliseconds())/1000
 						if duration < 0 then
 							--Effect Expired
+							EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
 								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 							else
@@ -196,7 +188,6 @@ local function InitSimple(settingsTable, unitTag, control)
 							end
 							durationControl:SetText("")
 							stackControl:SetText("")
-							EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 						else
 							if duration < 2 then
 								durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -206,6 +197,7 @@ local function InitSimple(settingsTable, unitTag, control)
 						end
 					end)
 				elseif result == ACTION_RESULT_EFFECT_FADED then
+					EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 					if settingsTable.overrideTexturePath == "" then
 						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 					else
@@ -213,7 +205,6 @@ local function InitSimple(settingsTable, unitTag, control)
 					end
 					durationControl:SetText("")
 					stackControl:SetText("")
-					EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 				end	
 			end
 		end)
@@ -221,8 +212,8 @@ local function InitSimple(settingsTable, unitTag, control)
 
 	EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, _)
 		if settingsTable.hashedAbilityIDs[abilityID] then
-			if stackCount == 0 then stackCount = "" end
-			stackControl:SetText(stackCount)
+			if stackCount == 0 or changeType == EFFECT_RESULT_FADED then stackCount = "" end --stackcount can be 1 instead of 0 after final stone giant cast for example.
+			stackControl:SetText(stackCount) 
 			if settingsTable.overrideTexturePath == "" then
 				textureControl:SetTexture(GetAbilityIcon(abilityID))
 			else
@@ -234,6 +225,7 @@ local function InitSimple(settingsTable, unitTag, control)
 					local duration = (endTime-GetGameTimeMilliseconds())/1000
 					if duration < 0 then
 						--Effect Expired
+						EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 						if settingsTable.overrideTexturePath == "" then
 							textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 						else
@@ -241,7 +233,6 @@ local function InitSimple(settingsTable, unitTag, control)
 						end
 						durationControl:SetText("")
 						stackControl:SetText("")
-						EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
