@@ -2,10 +2,14 @@ GET = GET or {}
 
 GET.presets = {
     offBalance = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Off Balance Preset",
         type = "Bar",
         targetType = "Reticle Target",
@@ -112,10 +116,14 @@ GET.presets = {
         hidden = false,
     },
     stagger = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Stagger Preset",
         type = "Simple",
         targetType = "Player",
@@ -185,10 +193,14 @@ GET.presets = {
 
     },
     relentlessFocus = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Relentless Focus Preset",
         type = "Simple",
         targetType = "Player",
@@ -255,10 +267,14 @@ GET.presets = {
         hidden = false,
     },
     mercilessResolve = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Merciless Resolve Preset",
         type = "Simple",
         targetType = "Player",
@@ -325,10 +341,14 @@ GET.presets = {
         hidden = false,
     },
     alkosh = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Alkosh Preset",
         type = "Bar",
         targetType = "Reticle Target",
@@ -397,10 +417,14 @@ GET.presets = {
         hidden = false,
     },
     mk = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Martial Knowledge Preset",
         type = "Simple",
         targetType = "Reticle Target",
@@ -467,10 +491,14 @@ GET.presets = {
         hidden = false,
     },
     synergyCooldown = {
-        control = nil,
-        controlKey = nil,
-        animation = nil,
-        animationKey = nil,
+        control = {
+            object = nil,
+            key = nil,
+        },
+        animation = {
+            object = nil,
+            key = nil,
+        },
         name = "Resource Synergy Cooldown Preset",
         type = "Bar",
         targetType = "Player",

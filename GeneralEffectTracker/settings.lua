@@ -14,10 +14,14 @@ local isCharacterSettings = false
 -- New/updated tracker settings. Local until "save"
 -- These are default values for a new tracker.
 local newTracker = {
-	control = nil,
-	controlKey = nil,
-	animation = nil,
-	animationKey = nil,
+	control = {
+		object = nil,
+		key = nil,
+	},
+	animation = {
+		object = nil,
+		key = nil,
+	},
 	name = "",
 	type = "Simple",
 	targetType = "Player",
@@ -109,10 +113,10 @@ local function temporarilyShowControl(index)
 	local control
 	local isHidden
 	if not isCharacterSettings then
-		control = GET.savedVariables.trackerList[index].control
+		control = GET.savedVariables.trackerList[index].control.object
 		isHidden = GET.savedVariables.trackerList[index].hidden
 	else
-		control = GET.characterSavedVariables.trackerList[index].control
+		control = GET.characterSavedVariables.trackerList[index].control.object
 		isHidden = GET.characterSavedVariables.trackerList[index].hidden
 	end
 	if control then
@@ -186,7 +190,7 @@ function GET.InitSettings()
 					clickHandler = function(control)
 						editIndex = k
 						isCharacterSettings = false
-						ZO_DeepTableCopy(GET.savedVariables.trackerList[editIndex], newTracker)
+						ZO_DeepTableCopy(GET.savedVariables.trackerList[editIndex], newTracker) --TODO
 						currentPageIndex = 2 + editIndex
 						loadMenu(settingPages.newTracker, 2)
 
@@ -241,7 +245,7 @@ function GET.InitSettings()
 					clickHandler = function(control)
 						editIndex = k
 						isCharacterSettings = true
-						ZO_DeepTableCopy(GET.characterSavedVariables.trackerList[editIndex], newTracker)
+						ZO_DeepTableCopy(GET.characterSavedVariables.trackerList[editIndex], newTracker) --todo
 						currentPageIndex = 2 + editIndex
 						loadMenu(settingPages.newTracker, 2)
 
@@ -297,10 +301,14 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			--reset local variables
 			newTracker = {
-				control = nil,
-				controlKey = nil,
-				animation = nil,
-				animationKey = nil,
+				control = {
+					object = nil,
+					key = nil,
+				},
+				animation = {
+					object = nil,
+					key = nil,
+				},
 				name = "",
 				type = "Simple",
 				targetType = "Player",
@@ -406,17 +414,17 @@ function GET.InitSettings()
 		tooltip = "PERMANENTLY removes this tracker.\n\
 					This action cannot be undone.",
 		clickHandler = function(control)
-			if newTracker.control then 
-				if newTracker.control:GetNamedChild("Stacks") then
+			if newTracker.control.object then 
+				if newTracker.control.object:GetNamedChild("Stacks") then
 					--simple
-					GET.simplePool:ReleaseObject(newTracker.controlKey)
+					GET.simplePool:ReleaseObject(newTracker.control.key)
 				else
 					--bar 
-					GET.barPool:ReleaseObject(newTracker.controlKey)
+					GET.barPool:ReleaseObject(newTracker.control.key)
 				end
 			end
-			if newTracker.animation then
-				GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
+			if newTracker.animation.object then
+				GET.barAnimationPool:ReleaseObject(newTracker.animation.key)
 			end
 
 			--table.remove isn't saving changes for some reason
@@ -465,10 +473,10 @@ function GET.InitSettings()
 
 			GET.savedVariables.trackerList[index] = {}
 			ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
-			GET.savedVariables.trackerList[index].control = nil
-			GET.savedVariables.trackerList[index].controlKey = nil
-			GET.savedVariables.trackerList[index].animation = nil
-			GET.savedVariables.trackerList[index].animationKey = nil
+			GET.savedVariables.trackerList[index].control.object = nil
+			GET.savedVariables.trackerList[index].control.key = nil
+			GET.savedVariables.trackerList[index].animation.object = nil
+			GET.savedVariables.trackerList[index].animation.key = nil
 			GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			
 			
@@ -510,10 +518,10 @@ function GET.InitSettings()
 
 			GET.characterSavedVariables.trackerList[index] = {}
 			ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
-			GET.characterSavedVariables.trackerList[index].control = nil
-			GET.characterSavedVariables.trackerList[index].controlKey = nil
-			GET.characterSavedVariables.trackerList[index].animation = nil
-			GET.characterSavedVariables.trackerList[index].animationKey = nil
+			GET.characterSavedVariables.trackerList[index].control.object = nil
+			GET.characterSavedVariables.trackerList[index].control.key = nil
+			GET.characterSavedVariables.trackerList[index].animation.object = nil
+			GET.characterSavedVariables.trackerList[index].animation.key = nil
 			GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			
 			
@@ -567,7 +575,7 @@ function GET.InitSettings()
 					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
 				end
 			end
-			if newTracker.control then 
+			if newTracker.control.object then 
 				GET.InitSingleDisplay(newTracker)
 			end
 		end,
@@ -596,8 +604,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.overrideTexturePath end,
 		setFunction = function(value) 
 			newTracker.overrideTexturePath = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -611,8 +619,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.hidden end,
 		setFunction = function(value) 
 			newTracker.hidden = value 
-			if newTracker.control then
-				newTracker.control:SetHidden(value)
+			if newTracker.control.object then
+				newTracker.control.object:SetHidden(value)
 				if value == false then
 					temporarilyShowControl(editIndex)
 				end
@@ -683,9 +691,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.x end,
 		setFunction = function(value) 
 			newTracker.x = value
-			if newTracker.control then
-				newTracker.control:ClearAnchors()
-				newTracker.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+			if newTracker.control.object then
+				newTracker.control.object:ClearAnchors()
+				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -704,9 +712,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.y end,
 		setFunction = function(value) 
 			newTracker.y = value
-			if newTracker.control then
-				newTracker.control:ClearAnchors()
-				newTracker.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+			if newTracker.control.object then
+				newTracker.control.object:ClearAnchors()
+				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -725,8 +733,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.scale end,
 		setFunction = function(value)
 			newTracker.scale = value
-			if newTracker.control then
-				newTracker.control:SetScale(value)
+			if newTracker.control.object then
+				newTracker.control.object:SetScale(value)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -745,9 +753,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.hidden = value 
-			if newTracker.control then
-				local child = newTracker.control:GetNamedChild("Duration")
-				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+			if newTracker.control.object then
+				local child = newTracker.control.object:GetNamedChild("Duration")
+				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetHidden(value)
 				temporarilyShowControl(editIndex)
 			end
@@ -765,9 +773,9 @@ function GET.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.duration.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control then
-				local child = newTracker.control:GetNamedChild("Duration")
-				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+			if newTracker.control.object then
+				local child = newTracker.control.object:GetNamedChild("Duration")
+				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
 				temporarilyShowControl(editIndex)
 			end
@@ -787,9 +795,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.duration.textScale = value
-			if newTracker.control then
-				local child = newTracker.control:GetNamedChild("Duration")
-				if not child then child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") end
+			if newTracker.control.object then
+				local child = newTracker.control.object:GetNamedChild("Duration")
+				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetScale(newTracker.textSettings.duration.textScale)
 				temporarilyShowControl(editIndex)
 			end
@@ -809,15 +817,15 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.x  = value
-			if newTracker.control then
-				local child = newTracker.control:GetNamedChild("Duration")
+			if newTracker.control.object then
+				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then 
-					child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") 
+					child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") 
 					child:ClearAnchors()
-					child:SetAnchor(RIGHT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(RIGHT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				else
 					child:ClearAnchors()
-					child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
 				temporarilyShowControl(editIndex)
 			end
@@ -860,8 +868,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.hidden = value 
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Stacks"):SetHidden(value)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Stacks"):SetHidden(value)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -878,8 +886,8 @@ function GET.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.stacks.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -898,8 +906,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.stacks.textScale = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -918,9 +926,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.x  = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Stacks"):ClearAnchors()
-				newTracker.control:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
+				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -939,9 +947,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.y = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Stacks"):ClearAnchors()
-				newTracker.control:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+			if newTracker.contro.objectl then
+				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
+				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -955,8 +963,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.hidden = value 
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -993,8 +1001,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.abilityLabel.textScale = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1013,9 +1021,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.x = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1034,9 +1042,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.y = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1050,8 +1058,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.hidden = value 
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1068,8 +1076,8 @@ function GET.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.unitLabel.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1088,8 +1096,8 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.unitLabel.textScale = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1108,9 +1116,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.x  = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1129,9 +1137,9 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.y = value
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+			if newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
 				temporarilyShowControl(editIndex)
 			end
 		end,
@@ -1196,11 +1204,77 @@ function GET.InitSettings()
 
 			if not isCharacterSettings then
 				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
+				if newTracker.control.head then
+					-- Exclude the 2-directional linked list from the deep copy.
+					local tempControlList = newTracker.control
+					local tempAnimationList = newTracker.animation
+					newTracker.control = nil
+					newTracker.animation = nil
+
+					ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
+
+					newTracker.control = tempControlList
+					newTracker.animation = tempAnimationList
+
+					-- Copy over the linked list ourselves
+					-- The deep copy function will never stop running so we do this ourselves.
+					local cur_source = newTracker.control.head
+					GET.savedVariables.trackerList[index].control = {
+						head = {next = cur_source.next, prev = cur_source.prev, 
+							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}, 
+						tail = nil
+					}
+					local cur_dest = GET.savedVariables.trackerList[index].control.head
+					cur_source = cur_source.next
+					cur_dest = cur_dest.next
+					while cur_source do
+						cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
+							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}
+						cur_source = cur_source.next
+						if not cur_source then
+							GET.savedVariables.trackerList[index].control.tail = cur_dest
+						end
+					end
+				else
+					ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
+				end
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
+				if newTracker.control.head then
+					-- Exclude the 2-directional linked list from the deep copy.
+					local tempControlList = newTracker.control
+					local tempAnimationList = newTracker.animation
+					newTracker.control = nil
+					newTracker.animation = nil
+
+					ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
+
+					newTracker.control = tempControlList
+					newTracker.animation = tempAnimationList
+
+					-- Copy over the linked list ourselves
+					-- The deep copy function will never stop running so we do this ourselves.
+					local cur_source = newTracker.control.head
+					GET.characterSavedVariables.trackerList[index].control = {
+						head = {next = cur_source.next, prev = cur_source.prev, 
+							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}, 
+						tail = nil
+					}
+					local cur_dest = GET.characterSavedVariables.trackerList[index].control.head
+					cur_source = cur_source.next
+					cur_dest = cur_dest.next
+					while cur_source do
+						cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
+							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}
+						cur_source = cur_source.next
+						if not cur_source then
+							GET.characterSavedVariables.trackerList[index].control.tail = cur_dest
+						end
+					end
+				else
+					ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
+				end
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1220,20 +1294,20 @@ function GET.InitSettings()
 				if not isCharacterSettings then
 					if GET.savedVariables.trackerList[editIndex].type ~= newTracker.type then
 						if newTracker.type == "Simple" then
-							GET.simplePool:ReleaseObject(newTracker.controlKey)
+							GET.simplePool:ReleaseObject(newTracker.control.key)
 						elseif newTracker.type == "Bar" then
-							GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
-							GET.barPool:ReleaseObject(newTracker.controlKey)
+							GET.barAnimationPool:ReleaseObject(newTracker.animation.key)
+							GET.barPool:ReleaseObject(newTracker.control.key)
 						end
 					end
 					GET.InitSingleDisplay(GET.savedVariables.trackerList[editIndex]) --Load old changes
 				else
 					if GET.characterSavedVariables.trackerList[editIndex].type ~= newTracker.type then
 						if newTracker.type == "Simple" then
-							GET.simplePool:ReleaseObject(newTracker.controlKey)
+							GET.simplePool:ReleaseObject(newTracker.control.key)
 						elseif newTracker.type == "Bar" then
-							GET.barAnimationPool:ReleaseObject(newTracker.animationKey)
-							GET.barPool:ReleaseObject(newTracker.controlKey)
+							GET.barAnimationPool:ReleaseObject(newTracker.animation.key)
+							GET.barPool:ReleaseObject(newTracker.control.key)
 						end
 					end
 					GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[editIndex]) --Load old changes
