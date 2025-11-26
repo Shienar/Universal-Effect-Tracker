@@ -3,8 +3,9 @@ GET.name = "GeneralEffectTracker"
 
 --[[
 	TODO LIST:
-		-- Give each tracker a unique tracker ID to be used for certain event hooks.
 		-- Group/Boss buff panels.
+			- Bar:
+				- changes in the settings menu should reflect immediately.
 			- Simple:
 				- Create a table. (new control)
 					- Header row is 1 column equal to the assigned tracker name.
@@ -13,8 +14,6 @@ GET.name = "GeneralEffectTracker"
 					- Column 3: Duration
 						- Add a stack indicator if applicable (e.g. x3)
 					- Row count is fixed  
-			- Bars:
-				- Setting to adjust distance between?
 		-- Make the bar pretty
 			-- Bar background color settings
 			-- Bar border color settings
@@ -23,12 +22,12 @@ GET.name = "GeneralEffectTracker"
 		-- Allow for LibCombatAlerts Positioning.
 			- Only when editing existing
 			- Just search for the y offsets of each type and add there.
+
+	KNOWN BUGS:
+		-- reloading ui will hide the boss panels until an EVENT_BOSSES_CHANGED event.
 ]]
 
 GET.defaults = {
-	trackerList = {
-
-	}
 }
 
 GET.unitIDs = {
@@ -406,6 +405,7 @@ end
 
 local function InitBarList(settingsTable, unitTag)
 	settingsTable.control, settingsTable.animation = {head = nil, tail = nil}, {head = nil, tail = nil}
+
 	-- Initialize linked list with current bosses / group members
 	for i = 1, 12 do
 		if DoesUnitExist(unitTag..i) then
@@ -443,6 +443,7 @@ local function InitBarList(settingsTable, unitTag)
 	end
 end
 
+-- number of controls, control unit tag targets, anchors, etc.
 local function updateBarList(settingsTable, unitTag)
 	--Step 1: Removed linked list elements if the unittag's boss no longer exists.
 	local currentControlNode = settingsTable.control.head
@@ -450,8 +451,8 @@ local function updateBarList(settingsTable, unitTag)
 	while currentControlNode do
 		if not DoesUnitExist(currentControlNode.value.unitTag) then
 			--update anchors
-			if currentControlNode.next then
-				if currentControlNode.prev then
+			if currentControlNode.next and currentControlNode.next.value.control then
+				if currentControlNode.prev and currentControlNode.prev.value.control then
 					currentControlNode.next.value.control:ClearAnchors()
 					currentControlNode.next.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25)
 				else
@@ -573,6 +574,28 @@ local function updateBarList(settingsTable, unitTag)
 	end
 end
 
+-- settings (e.g font, scale, offset, etc.)
+local function refreshBarList(settingsTable, unitTag)
+	local current_control = settingsTable.control.head
+	local current_animation = settingsTable.animation.head
+	while current_control and current_control.value.control and current_animation and current_animation.value.control do
+		InitBar(settingsTable, unitTag, current_control.value.control, current_animation.value.animation)
+		current_control = current_control.next
+		current_animation = current_animation.next
+	end
+
+	--register events.
+	if unitTag == "boss" then
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateBarList(settingsTable, unitTag) end)
+	elseif unitTag == "group" then
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateBarList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateBarList(settingsTable, unitTag) end)
+	end
+end
+
 function GET.InitSingleDisplay(settingsTable)
 
 	local unitTag = nil
@@ -588,29 +611,55 @@ function GET.InitSingleDisplay(settingsTable)
 
 	if unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Simple" then
-			if not settingsTable.control.object then
+			if settingsTable.control.head then --bar panel
+				local currentControlNode = settingsTable.control.head
+				local currentAnimationNode = settingsTable.animation.head
+				while currentControlNode and currentAnimationNode do
+					GET.barPool:ReleaseObject(currentControlNode.value.key)
+					GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
+
+					currentAnimationNode = currentAnimationNode.next
+					currentControlNode = currentControlNode.next
+				end
+				settingsTable.control = {object = nil, key = nil}
+				settingsTable.animation = {object = nil, key = nil}
 				settingsTable.control.object, settingsTable.control.key = GET.simplePool:AcquireObject()
+			elseif not settingsTable.control.object then
+				settingsTable.control.object, settingsTable.control.key = GET.simplePool:AcquireObject()
+				settingsTable.id = GET.nextID
+				GET.nextID = GET.nextID + 1
 			elseif string.find(settingsTable.control.object:GetName(), "Bar") then
 				GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
 				GET.barPool:ReleaseObject(settingsTable.control.key)
 				settingsTable.control.object, settingsTable.control.key = GET.simplePool:AcquireObject()
-			--elseif old tracker was a simple panel
-			--elseif old tracker was a bar panel
 			end
 
 			InitSimple(settingsTable, unitTag, settingsTable.control.object)
 		elseif settingsTable.type == "Bar" then
-			if not settingsTable.control.object then
+			if settingsTable.control.head then --bar panel
+				local currentControlNode = settingsTable.control.head
+				local currentAnimationNode = settingsTable.animation.head
+				while currentControlNode and currentAnimationNode do
+					GET.barPool:ReleaseObject(currentControlNode.value.key)
+					GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
+
+					currentAnimationNode = currentAnimationNode.next
+					currentControlNode = currentControlNode.next
+				end
+				settingsTable.control = {object = nil, key = nil}
+				settingsTable.animation = {object = nil, key = nil}
 				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
 				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
-			elseif string.find(settingsTable.control:GetName(), "Simple") then
+			elseif not settingsTable.control.object then
+				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
+				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
+				settingsTable.id = GET.nextID
+				GET.nextID = GET.nextID + 1
+			elseif string.find(settingsTable.control.object:GetName(), "Simple") then
 				GET.simplePool:ReleaseObject(settingsTable.control.key)
 				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
 				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
-			--elseif old tracker was a simple panel
-			--elseif old tracker was a bar panel
 			end
-
 			InitBar(settingsTable, unitTag, settingsTable.control.object, settingsTable.animation.object)
 		end
 	elseif unitTag == "boss" or unitTag == "group" then
@@ -623,18 +672,22 @@ function GET.InitSingleDisplay(settingsTable)
 			if settingsTable.animation.object then
 				GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
 			end
-			
-			--initialize current.
-			InitBarList(settingsTable, unitTag)
-			
+
+			if settingsTable.control.head then
+				refreshBarList(settingsTable, unitTag)
+			else
+				--initialize current.
+				InitBarList(settingsTable, unitTag)
+				settingsTable.id = GET.nextID
+				GET.nextID = GET.nextID + 1
+			end
+
 			--register events.
 			if unitTag == "boss" then
-				--todo: find consistent naming scheme.
-				EVENT_MANAGER:RegisterForEvent(GET.name, EVENT_BOSSES_CHANGED, function() updateBarList(settingsTable, unitTag) end)
+				EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateBarList(settingsTable, unitTag) end)
 			elseif unitTag == "group" then
-				--todo: find consistent naming scheme.
-				EVENT_MANAGER:RegisterForEvent(GET.name, EVENT_GROUP_MEMBER_JOINED, function() updateBarList(settingsTable, unitTag) end)
-				EVENT_MANAGER:RegisterForEvent(GET.name, EVENT_GROUP_MEMBER_LEFT, function() updateBarList(settingsTable, unitTag) end)
+				EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateBarList(settingsTable, unitTag) end)
+				EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateBarList(settingsTable, unitTag) end)
 			end
 
 		end
@@ -649,7 +702,7 @@ local function fragmentChange(oldState, newState)
 				if v.control.object then
 					v.control.object:SetHidden(v.hidden)
 				else
-					local tempNode = v.control
+					local tempNode = v.control.head
 					while tempNode do
 						if tempNode.value and tempNode.value.control then 
 							tempNode.value.control:SetHidden(v.hidden)
@@ -664,7 +717,7 @@ local function fragmentChange(oldState, newState)
 				if v.control.object then
 					v.control.object:SetHidden(v.hidden)
 				else
-					local tempNode = v.control
+					local tempNode = v.control.head
 					while tempNode do
 						if tempNode.value and tempNode.value.control then 
 							tempNode.value.control:SetHidden(v.hidden)
@@ -681,7 +734,7 @@ local function fragmentChange(oldState, newState)
 				if v.control.object then
 					v.control.object:SetHidden(true)
 				else
-					local tempNode = v.control
+					local tempNode = v.control.head
 					while tempNode do
 						if tempNode.value and tempNode.value.control then 
 							tempNode.value.control:SetHidden(true)
@@ -696,7 +749,7 @@ local function fragmentChange(oldState, newState)
 				if v.control.object then
 					v.control.object:SetHidden(true)
 				else
-					local tempNode = v.control
+					local tempNode = v.control.head
 					while tempNode do
 						if tempNode.value and tempNode.value.control then 
 							tempNode.value.control:SetHidden(true)
@@ -726,14 +779,14 @@ function GET.Initialize()
 	end)
 	GET.barPool:SetCustomResetBehavior(function(control)
 		for k, v  in pairs(GET.savedVariables.trackerList) do
-			if v.control.object == control then
+			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
 				return
 			end
 		end
 		for k, v  in pairs(GET.characterSavedVariables.trackerList) do
-			if v.control.object == control then
+			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
 				return
@@ -744,14 +797,14 @@ function GET.Initialize()
 	GET.barAnimationPool = ZO_AnimationPool:New("SingleBarAnimation")
 	GET.barAnimationPool:SetCustomResetBehavior(function(animation)
 		for k, v  in pairs(GET.savedVariables.trackerList) do
-			if v.animation.object == animation then
+			if v.animation and v.animation.object == animation then
 				v.animation.object = nil
 				v.animation.key = nil
 				return
 			end
 		end
 		for k, v  in pairs(GET.characterSavedVariables.trackerList) do
-			if v.animation.object == animation then
+			if v.animation and v.animation.object == animation then
 				v.animation.object = nil
 				v.animation.key = nil
 				return
@@ -769,14 +822,14 @@ function GET.Initialize()
 	end)
 	GET.simplePool:SetCustomResetBehavior(function(control)
 		for k, v  in pairs(GET.savedVariables.trackerList) do
-			if v.control.object == control then
+			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
 				return
 			end
 		end
 		for k, v  in pairs(GET.characterSavedVariables.trackerList) do
-			if v.control.object == control then
+			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
 				return
@@ -787,9 +840,11 @@ function GET.Initialize()
     GET.InitSettings()
 
 	for k, v in pairs (GET.savedVariables.trackerList) do
+		GET.savedVariables.trackerList.control = {object = nil, key = nil}
 		GET.InitSingleDisplay(v)
 	end
 	for k, v in pairs (GET.characterSavedVariables.trackerList) do
+		GET.characterSavedVariables.trackerList.control = {object = nil, key = nil}
 		GET.InitSingleDisplay(v)
 	end
 

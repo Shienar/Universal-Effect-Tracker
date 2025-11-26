@@ -2,6 +2,7 @@ GET = GET or {}
 
 GET.presets = {
     offBalance = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,
@@ -116,6 +117,7 @@ GET.presets = {
         hidden = false,
     },
     stagger = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,
@@ -193,6 +195,7 @@ GET.presets = {
 
     },
     relentlessFocus = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,
@@ -267,6 +270,7 @@ GET.presets = {
         hidden = false,
     },
     mercilessResolve = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,
@@ -341,6 +345,7 @@ GET.presets = {
         hidden = false,
     },
     alkosh = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,
@@ -417,6 +422,7 @@ GET.presets = {
         hidden = false,
     },
     mk = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,
@@ -491,6 +497,7 @@ GET.presets = {
         hidden = false,
     },
     synergyCooldown = {
+	    id = -1,
         control = {
             object = nil,
             key = nil,

@@ -1,5 +1,7 @@
 GET = GET or {}
 
+GET.nextID = 0
+
 local settings = nil
 local settingPages = {
 	mainMenu = {},
@@ -14,6 +16,7 @@ local isCharacterSettings = false
 -- New/updated tracker settings. Local until "save"
 -- These are default values for a new tracker.
 local newTracker = {
+	id = -1,
 	control = {
 		object = nil,
 		key = nil,
@@ -110,24 +113,111 @@ end
 
 local function temporarilyShowControl(index) 
     --Hide control 5 seconds after most recent change.
+	--This function is safe to call when no controls exist.
 	local control
 	local isHidden
+	local controlHead
 	if not isCharacterSettings then
 		control = GET.savedVariables.trackerList[index].control.object
 		isHidden = GET.savedVariables.trackerList[index].hidden
+		controlHead = GET.savedVariables.trackerList[index].control.head
+		
 	else
 		control = GET.characterSavedVariables.trackerList[index].control.object
 		isHidden = GET.characterSavedVariables.trackerList[index].hidden
+		controlHead = GET.characterSavedVariables.trackerList[index].control.head
 	end
 	if control then
 		control:SetHidden(false)
 		EVENT_MANAGER:RegisterForUpdate(GET.name.." move "..control:GetName(), 5000, function()
 			if SCENE_MANAGER:GetScene("hud"):GetState() == SCENE_HIDDEN then
-				control:SetHidden(isHidden)
+				control:SetHidden(true)
 			end
 			EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..control:GetName())
 		end)
+	elseif controlHead then
+		local curNode = controlHead
+		while curNode do
+			curNode.value.control:SetHidden(false)
+			curNode = curNode.next
+		end
+		EVENT_MANAGER:RegisterForUpdate(GET.name.." move "..GET.savedVariables.trackerList[index].id, 5000, function()
+			if SCENE_MANAGER:GetScene("hud"):GetState() == SCENE_HIDDEN then
+				curNode = controlHead
+				while curNode do
+					curNode.value.control:SetHidden(true)
+					curNode = curNode.next
+				end
+			end
+			EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..GET.savedVariables.trackerList[index].id)
+		end)
 	end
+end
+
+local function copyTracker(source, nullifyControls)
+	local dest = {}
+	if source.control.head then
+		-- Exclude the 2-directional linked list from the deep copy.
+		-- The deep copy function will never stop running otherwise.
+		local tempControlList = source.control
+		local tempAnimationList = source.animation
+		source.control = nil
+		source.animation = nil
+		ZO_DeepTableCopy(source, dest)
+		source.control = tempControlList
+		source.animation = tempAnimationList
+
+		if not nullifyControls then
+			-- Copy over the linked list ourselves
+			local cur_source = source.control.head
+			dest.control = {
+				head = {next = cur_source.next, prev = cur_source.prev, 
+					value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}, 
+				tail = nil
+			}
+			local cur_dest = dest.control.head
+			cur_source = cur_source.next
+			cur_dest = cur_dest.next
+			while cur_source do
+				cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
+					value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}
+				cur_source = cur_source.next
+				if not cur_source then
+					dest.control.tail = cur_dest
+				end
+			end
+
+			
+			cur_source = source.animation.head
+			dest.animation = {
+				head = {next = cur_source.next, prev = cur_source.prev, 
+					value = {animation = cur_source.value.animation, key = cur_source.value.key}}, 
+				tail = nil
+			}
+			cur_dest = dest.animation.head
+			cur_source = cur_source.next
+			cur_dest = cur_dest.next
+			while cur_source do
+				cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
+					value = {animation = cur_source.value.animation, key = cur_source.value.key}}
+				cur_source = cur_source.next
+				if not cur_source then
+					dest.animation.tail = cur_dest
+				end
+			end
+		else
+			dest.control = {head = nil, tail = nil}
+			dest.animation = {head = nil, tail = nil}
+		end
+	else
+		ZO_DeepTableCopy(source, dest)
+		if nullifyControls then
+			dest.control = { object = nil, key = nil,}
+			dest.animation = { object = nil, key = nil,}
+		end
+	end
+
+	return dest
 end
 
 function GET.InitSettings()
@@ -190,7 +280,7 @@ function GET.InitSettings()
 					clickHandler = function(control)
 						editIndex = k
 						isCharacterSettings = false
-						ZO_DeepTableCopy(GET.savedVariables.trackerList[editIndex], newTracker) --TODO
+						newTracker = copyTracker(GET.savedVariables.trackerList[editIndex])
 						currentPageIndex = 2 + editIndex
 						loadMenu(settingPages.newTracker, 2)
 
@@ -245,7 +335,7 @@ function GET.InitSettings()
 					clickHandler = function(control)
 						editIndex = k
 						isCharacterSettings = true
-						ZO_DeepTableCopy(GET.characterSavedVariables.trackerList[editIndex], newTracker) --todo
+						newTracker = copyTracker(GET.characterSavedVariables.trackerList[editIndex])
 						currentPageIndex = 2 + editIndex
 						loadMenu(settingPages.newTracker, 2)
 
@@ -301,6 +391,7 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			--reset local variables
 			newTracker = {
+				id = -1,
 				control = {
 					object = nil,
 					key = nil,
@@ -471,12 +562,7 @@ function GET.InitSettings()
 				return
 			end
 
-			GET.savedVariables.trackerList[index] = {}
-			ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
-			GET.savedVariables.trackerList[index].control.object = nil
-			GET.savedVariables.trackerList[index].control.key = nil
-			GET.savedVariables.trackerList[index].animation.object = nil
-			GET.savedVariables.trackerList[index].animation.key = nil
+			GET.savedVariables.trackerList[index] = copyTracker(newTracker, true)
 			GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			
 			
@@ -516,12 +602,7 @@ function GET.InitSettings()
 				return
 			end
 
-			GET.characterSavedVariables.trackerList[index] = {}
-			ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
-			GET.characterSavedVariables.trackerList[index].control.object = nil
-			GET.characterSavedVariables.trackerList[index].control.key = nil
-			GET.characterSavedVariables.trackerList[index].animation.object = nil
-			GET.characterSavedVariables.trackerList[index].animation.key = nil
+			GET.characterSavedVariables.trackerList[index] = copyTracker(newTracker, true)
 			GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			
 			
@@ -577,6 +658,8 @@ function GET.InitSettings()
 			end
 			if newTracker.control.object then 
 				GET.InitSingleDisplay(newTracker)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.InitSingleDisplay(newTracker)
 			end
 		end,
 		default = 1,
@@ -605,9 +688,10 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.overrideTexturePath = value
 			if newTracker.control.object then
+				-- todo barlist
 				newTracker.control.object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = ""
 	}
@@ -621,9 +705,9 @@ function GET.InitSettings()
 			newTracker.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:SetHidden(value)
-				if value == false then
-					temporarilyShowControl(editIndex)
-				end
+			end
+			if value == false then
+				temporarilyShowControl(editIndex)
 			end
 		end,
 		default = newTracker.hidden
@@ -692,10 +776,11 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.x = value
 			if newTracker.control.object then
+				--todo bar list
 				newTracker.control.object:ClearAnchors()
 				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.x
 	}
@@ -713,10 +798,11 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.y = value
 			if newTracker.control.object then
+				--todo bar list
 				newTracker.control.object:ClearAnchors()
 				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.y
 	}
@@ -725,18 +811,19 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Scale",
 		tooltip = "Modifies the tracker's size.\n",
-		min = 0.01,
+		min = 0.1,
 		max = 5,
-		step = 0.01,
-		format = "%.1f", 
+		step = 0.1,
+		format = "%.01f", 
 		unit = "",
 		getFunction = function() return newTracker.scale end,
 		setFunction = function(value)
 			newTracker.scale = value
 			if newTracker.control.object then
+				--todo bar list
 				newTracker.control.object:SetScale(value)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.scale
 	}
@@ -754,11 +841,12 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.duration.hidden = value 
 			if newTracker.control.object then
+				--todo bar list
 				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetHidden(value)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.duration.hidden
 	}
@@ -777,8 +865,8 @@ function GET.InitSettings()
 				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -787,10 +875,10 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Duration Text Scale",
 		tooltip = "Modifies the duration's text size.\n",
-		min = 0.01,
+		min = 0.1,
 		max = 5,
-		step = 0.01,
-		format = "%.1f", 
+		step = 0.1,
+		format = "%.01f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.duration.textScale end,
 		setFunction = function(value)
@@ -799,8 +887,8 @@ function GET.InitSettings()
 				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetScale(newTracker.textSettings.duration.textScale)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.duration.textScale
 	}
@@ -827,8 +915,8 @@ function GET.InitSettings()
 					child:ClearAnchors()
 					child:SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.duration.x 
 	}
@@ -855,8 +943,8 @@ function GET.InitSettings()
 					child:ClearAnchors()
 					child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.duration.y
 	}
@@ -870,8 +958,8 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):SetHidden(value)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.duration.hidden
 	}
@@ -888,8 +976,8 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -898,18 +986,18 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Stacks Text Scale",
 		tooltip = "Modifies the stack's text size.\n",
-		min = 0.01,
+		min = 0.1,
 		max = 5,
-		step = 0.01,
-		format = "%.1f", 
+		step = 0.1,
+		format = "%.01f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.stacks.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.stacks.textScale = value
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.stacks.textScale
 	}
@@ -929,8 +1017,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.stacks.x 
 	}
@@ -950,8 +1038,8 @@ function GET.InitSettings()
 			if newTracker.contro.objectl then
 				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.stacks.y
 	}
@@ -965,8 +1053,8 @@ function GET.InitSettings()
 			newTracker.textSettings.abilityLabel.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.abilityLabel.hidden
 	}
@@ -983,8 +1071,8 @@ function GET.InitSettings()
 			newTracker.textSettings.abilityLabel.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control then
 				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -993,18 +1081,18 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Ability Label Text Scale",
 		tooltip = "Modifies the label's text size.\n",
-		min = 0.01,
+		min = 0.1,
 		max = 5,
-		step = 0.01,
-		format = "%.1f", 
+		step = 0.1,
+		format = "%.01f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.abilityLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.abilityLabel.textScale = value
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.abilityLabel.textScale
 	}
@@ -1024,8 +1112,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.abilityLabel.x 
 	}
@@ -1045,8 +1133,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.abilityLabel.y
 	}
@@ -1060,8 +1148,8 @@ function GET.InitSettings()
 			newTracker.textSettings.unitLabel.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.unitLabel.hidden
 	}
@@ -1078,8 +1166,8 @@ function GET.InitSettings()
 			newTracker.textSettings.unitLabel.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -1088,18 +1176,18 @@ function GET.InitSettings()
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Unit Label Text Scale",
 		tooltip = "Modifies the label's text size.\n",
-		min = 0.01,
+		min = 0.1,
 		max = 5,
-		step = 0.01,
-		format = "%.1f", 
+		step = 0.1,
+		format = "%.01f", 
 		unit = "",
 		getFunction = function() return newTracker.textSettings.unitLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.unitLabel.textScale = value
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.unitLabel.textScale
 	}
@@ -1119,8 +1207,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.unitLabel.x 
 	}
@@ -1140,8 +1228,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
-				temporarilyShowControl(editIndex)
 			end
+			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.unitLabel.y
 	}
@@ -1203,78 +1291,10 @@ function GET.InitSettings()
 			end
 
 			if not isCharacterSettings then
-				GET.savedVariables.trackerList[index] = {}
-				if newTracker.control.head then
-					-- Exclude the 2-directional linked list from the deep copy.
-					local tempControlList = newTracker.control
-					local tempAnimationList = newTracker.animation
-					newTracker.control = nil
-					newTracker.animation = nil
-
-					ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
-
-					newTracker.control = tempControlList
-					newTracker.animation = tempAnimationList
-
-					-- Copy over the linked list ourselves
-					-- The deep copy function will never stop running so we do this ourselves.
-					local cur_source = newTracker.control.head
-					GET.savedVariables.trackerList[index].control = {
-						head = {next = cur_source.next, prev = cur_source.prev, 
-							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}, 
-						tail = nil
-					}
-					local cur_dest = GET.savedVariables.trackerList[index].control.head
-					cur_source = cur_source.next
-					cur_dest = cur_dest.next
-					while cur_source do
-						cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
-							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}
-						cur_source = cur_source.next
-						if not cur_source then
-							GET.savedVariables.trackerList[index].control.tail = cur_dest
-						end
-					end
-				else
-					ZO_DeepTableCopy(newTracker, GET.savedVariables.trackerList[index])
-				end
+				GET.savedVariables.trackerList[index] = copyTracker(newTracker)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
-				GET.characterSavedVariables.trackerList[index] = {}
-				if newTracker.control.head then
-					-- Exclude the 2-directional linked list from the deep copy.
-					local tempControlList = newTracker.control
-					local tempAnimationList = newTracker.animation
-					newTracker.control = nil
-					newTracker.animation = nil
-
-					ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
-
-					newTracker.control = tempControlList
-					newTracker.animation = tempAnimationList
-
-					-- Copy over the linked list ourselves
-					-- The deep copy function will never stop running so we do this ourselves.
-					local cur_source = newTracker.control.head
-					GET.characterSavedVariables.trackerList[index].control = {
-						head = {next = cur_source.next, prev = cur_source.prev, 
-							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}, 
-						tail = nil
-					}
-					local cur_dest = GET.characterSavedVariables.trackerList[index].control.head
-					cur_source = cur_source.next
-					cur_dest = cur_dest.next
-					while cur_source do
-						cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
-							value = {control = cur_source.value.control, key = cur_source.value.key, unitTag = cur_source.value.unitTag}}
-						cur_source = cur_source.next
-						if not cur_source then
-							GET.characterSavedVariables.trackerList[index].control.tail = cur_dest
-						end
-					end
-				else
-					ZO_DeepTableCopy(newTracker, GET.characterSavedVariables.trackerList[index])
-				end
+				GET.characterSavedVariables.trackerList[index] = copyTracker(newTracker)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1386,13 +1406,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.offBalance, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.offBalance)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.offBalance, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.offBalance)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1412,13 +1430,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.stagger, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.stagger)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.stagger, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.stagger)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1438,13 +1454,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.relentlessFocus, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.relentlessFocus)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.relentlessFocus, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.relentlessFocus)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1464,13 +1478,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.mercilessResolve, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.mercilessResolve)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.mercilessResolve, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.mercilessResolve)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1490,13 +1502,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.alkosh, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.alkosh)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.alkosh, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.alkosh)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1516,13 +1526,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.mk, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.mk)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.mk, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.mk)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1542,13 +1550,11 @@ function GET.InitSettings()
 		clickHandler = function(control)
 			if not isCharacterSettings then
 				local index = #GET.savedVariables.trackerList + 1
-				GET.savedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.synergyCooldown, GET.savedVariables.trackerList[index])
+				GET.savedVariables.trackerList[index] = copyTracker(GET.presets.synergyCooldown)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
 			else
 				local index = #GET.characterSavedVariables.trackerList + 1
-				GET.characterSavedVariables.trackerList[index] = {}
-				ZO_DeepTableCopy(GET.presets.synergyCooldown, GET.characterSavedVariables.trackerList[index])
+				GET.characterSavedVariables.trackerList[index] = copyTracker(GET.presets.synergyCooldown)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
