@@ -1,6 +1,6 @@
-GET = GET or {}
+UniversalTracker = UniversalTracker or {}
 
-GET.presets = {
+UniversalTracker.presets = {
     offBalance = {
 	    id = -1,
         control = {

@@ -1,10 +1,13 @@
-GET = GET or {}
-GET.name = "GeneralEffectTracker"
+UniversalTracker = UniversalTracker or {}
+UniversalTracker.name = "UniversalEffectTracker"
 
-GET.defaults = {
+UniversalTracker.defaults = {
+	trackerList = {
+
+	}
 }
 
-GET.unitIDs = {
+UniversalTracker.unitIDs = {
 }
 
 local function InitCompact(settingsTable, unitTag, control)
@@ -60,11 +63,11 @@ local function InitCompact(settingsTable, unitTag, control)
 					textureControl:SetTexture(settingsTable.overrideTexture)
 				end
 				if not IsAbilityPermanent(abilityId) then
-					EVENT_MANAGER:RegisterForUpdate(GET.name..control:GetName(), 100, function()
+					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 						local duration = (endTime-GetGameTimeMilliseconds())/1000
 						if duration < 0 then
 							--Effect Expired
-							EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
 								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 							else
@@ -87,7 +90,7 @@ local function InitCompact(settingsTable, unitTag, control)
 	end
 
 	if unitTag == "reticleover" then
-		EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
 			if GetUnitName(unitTag) ~= "" then unitNameControl:SetText(GetUnitName(unitTag)) end
 			if DoesUnitExist(unitTag) then
 				for i = 1, GetNumBuffs(unitTag) do
@@ -102,11 +105,11 @@ local function InitCompact(settingsTable, unitTag, control)
 							textureControl:SetTexture(settingsTable.overrideTexture)
 						end
 						if not IsAbilityPermanent(abilityId) then
-							EVENT_MANAGER:RegisterForUpdate(GET.name..control:GetName(), 100, function()
+							EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 								local duration = (endTime-GetGameTimeMilliseconds())/1000
 								if duration < 0 then
 									--Effect Expired
-									EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+									EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 									if settingsTable.overrideTexturePath == "" then
 										textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 									else
@@ -128,7 +131,7 @@ local function InitCompact(settingsTable, unitTag, control)
 					end
 				end
 				--target doesn't have an effect.
-				EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 				else
@@ -140,8 +143,8 @@ local function InitCompact(settingsTable, unitTag, control)
 		end)
 	else
 		-- Track internal effects. (Thanks code65536 for making me aware of these)
-		EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-			if unitTag == GET.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
+			if unitTag == UniversalTracker.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
 				-- Only track effects not affected by event_effect_changed
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
@@ -159,11 +162,11 @@ local function InitCompact(settingsTable, unitTag, control)
 					end
 
 					local endTime = GetGameTimeMilliseconds() + hitValue
-					EVENT_MANAGER:RegisterForUpdate(GET.name..control:GetName(), 100, function()
+					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 						local duration = (endTime-GetGameTimeMilliseconds())/1000
 						if duration < 0 then
 							--Effect Expired
-							EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
 								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 							else
@@ -180,7 +183,14 @@ local function InitCompact(settingsTable, unitTag, control)
 						end
 					end)
 				elseif result == ACTION_RESULT_EFFECT_FADED then
-					EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+					-- Check again to ensure that no tracked buffs are in use.
+					-- Off balance + immunity will bug out otherwise since immunity starts before off balance ends
+					for i = 1, GetNumBuffs(unitTag) do
+						local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
+						if settingsTable.hashedAbilityIDs[buffID] then return end
+					end
+
+					EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 					if settingsTable.overrideTexturePath == "" then
 						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 					else
@@ -193,8 +203,17 @@ local function InitCompact(settingsTable, unitTag, control)
 		end)
 	end
 
-	EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, _)
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, _)
 		if settingsTable.hashedAbilityIDs[abilityID] then
+
+			--if faded with others running then return.
+			if changeType == EFFECT_RESULT_FADED then
+				for i = 1, GetNumBuffs(unitTag) do
+					local _, _, endTime, _, stacks, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i)
+					if settingsTable.hashedAbilityIDs[buffID] and abilityID ~= buffID then return end
+				end
+			end
+			
 			if stackCount == 0 or changeType == EFFECT_RESULT_FADED then stackCount = "" end --stackcount can be 1 instead of 0 after final stone giant cast for example.
 			stackControl:SetText(stackCount) 
 			if settingsTable.overrideTexturePath == "" then
@@ -204,11 +223,11 @@ local function InitCompact(settingsTable, unitTag, control)
 			end
 			if changeType ~= EFFECT_RESULT_FADED and not IsAbilityPermanent(abilityID) then
 				endTime = endTime * 1000
-				EVENT_MANAGER:RegisterForUpdate(GET.name..control:GetName(), 100, function()
+				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 					local duration = (endTime-GetGameTimeMilliseconds())/1000
 					if duration < 0 then
 						--Effect Expired
-						EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 						if settingsTable.overrideTexturePath == "" then
 							textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
 						else
@@ -235,7 +254,7 @@ local function InitCompact(settingsTable, unitTag, control)
 			end
 		end
 	end)
-	EVENT_MANAGER:AddFilterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
+	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
 end
 
 local function InitBar(settingsTable, unitTag, control, animation)
@@ -308,7 +327,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	end
 
 	if unitTag == "reticleover" then
-		EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
 			if DoesUnitExist(unitTag) then
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, startTime, endTime, _, _, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i) 
@@ -341,8 +360,8 @@ local function InitBar(settingsTable, unitTag, control, animation)
 		end)
 	else
 		-- Track internal effects. (Thanks code65536 for making me aware of these)
-		EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-			if unitTag == GET.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
+			if unitTag == UniversalTracker.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
 				-- Only track effects not affected by event_effect_changed
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
@@ -366,7 +385,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 		end)
 	end
 
-	EVENT_MANAGER:RegisterForEvent(GET.name.. control:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, _) 
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.. control:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, _) 
 		if changeType ~= EFFECT_RESULT_FADED and settingsTable.hashedAbilityIDs[abilityID] then
 			if settingsTable.overrideTexturePath == "" then
 				textureControl:SetTexture(GetAbilityIcon(abilityID))
@@ -381,7 +400,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 			animation:PlayFromStart(GetGameTimeMilliseconds()-startTime*1000)
 		end
 	end)
-	EVENT_MANAGER:AddFilterForEvent(GET.name.. control:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
+	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name.. control:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
 
 end
 
@@ -394,10 +413,10 @@ local function InitList(settingsTable, unitTag)
 			local newControl, newControlKey
 			local newAnimation, newAnimationKey
 			if settingsTable.type == "Bar" then
-				newControl, newControlKey = GET.barPool:AcquireObject()
-				newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+				newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
+				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
 			elseif settingsTable.type == "Compact" then
-				newControl, newControlKey = GET.compactPool:AcquireObject()
+				newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
 			end
 
 			local newControlNode = {next = nil, prev = settingsTable.control.tail, value = {control = newControl, key = newControlKey, unitTag = unitTag..i}}
@@ -475,10 +494,10 @@ local function updateList(settingsTable, unitTag)
 
 			--free objects
 			if currentAnimationNode then
-				GET.barPool:ReleaseObject(currentControlNode.value.key)
-				GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
+				UniversalTracker.barPool:ReleaseObject(currentControlNode.value.key)
+				UniversalTracker.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
 			else
-				GET.compactPool:ReleaseObject(currentControlNode.value.key)
+				UniversalTracker.compactPool:ReleaseObject(currentControlNode.value.key)
 			end
 
 			--remove from table (leave for garbage collector)
@@ -560,11 +579,11 @@ local function updateList(settingsTable, unitTag)
 					local newControl, newControlKey 
 					local newAnimation, newAnimationKey
 					if currentAnimationNode then
-						newControl, newControlKey = GET.barPool:AcquireObject()
-						newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+						newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
+						newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
 						InitBar(settingsTable, unitTag..k, newControl, newAnimation)
 					else
-						newControl, newControlKey = GET.compactPool:AcquireObject()
+						newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
 						InitCompact(settingsTable, unitTag..k, newControl)
 					end
 
@@ -585,22 +604,6 @@ local function updateList(settingsTable, unitTag)
 							currentAnimationNode.prev = newAnimationNode
 						end
 					end
-
-					--Anchor updates
-					if newControl.prev then
-						newControl:ClearAnchors()
-						if currentAnimationNode then
-							newControl:SetAnchor(TOPLEFT, newControl.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-						else
-							newControl:SetAnchor(TOPLEFT, newControl.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
-						end
-						
-					else
-						newControl:ClearAnchors()
-						newControl:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-					end
-					currentControlNode.value.control:ClearAnchors()
-					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
 				end
 			end
 			currentControlNode = currentControlNode.next
@@ -615,8 +618,8 @@ local function updateList(settingsTable, unitTag)
 			--object creation
 			local newControl, newControlKey, newAnimation, newAnimationKey
 			if settingsTable.type == "Bar" then
-				newControl, newControlKey = GET.barPool:AcquireObject()
-				newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+				newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
+				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
 				InitBar(settingsTable, unitTag..k, newControl, newAnimation)
 
 				--list updates
@@ -624,7 +627,7 @@ local function updateList(settingsTable, unitTag)
 				settingsTable.animation.tail.next = newAnimationNode
 				settingsTable.animation.tail = newAnimationNode
 			elseif settingsTable.type == "Compact" then
-				newControl, newControlKey = GET.compactPool:AcquireObject()
+				newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
 				InitCompact(settingsTable, unitTag..k, newControl)
 			end
 
@@ -633,20 +636,35 @@ local function updateList(settingsTable, unitTag)
 			settingsTable.control.tail.next = newControlNode
 			settingsTable.control.tail = newControlNode
 
+		end
 
-			--anchor updates
-			newControl:ClearAnchors()
-			if settingsTable.type == "Bar" then
-				newControl:SetAnchor(TOPLEFT, newControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-			else
-				newControl:SetAnchor(TOPLEFT, newControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+		-- Doing all of this case's anchor updates at the end here for simplicity's sake.
+		currentControlNode = settingsTable.control.head
+		currentControlNode.value.control:ClearAnchors()
+		currentControlNode.value.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
+		currentControlNode = currentControlNode.next
+		if settingsTable.type == "Bar" then	
+			while currentControlNode do
+				if currentControlNode.prev.value.control then
+					currentControlNode.value.control:ClearAnchors()
+					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+				end
+				currentControlNode = currentControlNode.next
+			end
+		elseif settingsTable.type == "Compact" then
+			while currentControlNode do
+				if currentControlNode.prev.value.control then
+					currentControlNode.value.control:ClearAnchors()
+					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+				end
+				currentControlNode = currentControlNode.next
 			end
 		end
 	end
 end
 
 -- settings (e.g font, scale, offset, etc.)
-function GET.refreshList(settingsTable, unitTag)
+function UniversalTracker.refreshList(settingsTable, unitTag)
 	if settingsTable.type == "Bar" then 
 		local current_control = settingsTable.control.head
 		local current_animation = settingsTable.animation.head
@@ -672,54 +690,54 @@ function GET.refreshList(settingsTable, unitTag)
 	end
 
 	--register events.
-	EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
-	EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
-	EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
+	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
+	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
 	if unitTag == "boss" then
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
-		EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
-		EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+		EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 	elseif unitTag == "group" then
 	elseif unitTag == "group" then
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
 	end
 end
 
 
-function GET.freeLists(settingsTable)
+function UniversalTracker.freeLists(settingsTable)
 	-- Don't do anything if not passed linked lists.
-	if settingsTable.control.object or settingsTable.animation.object then
+	if settingsTable.control.object or (settingsTable.animation and settingsTable.animation.object) then
 		return
 	end
 
 	if settingsTable.id then
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED)
-		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED)
-		EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..GET.savedVariables.trackerList[editIndex].id)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
+		EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..settingsTable.id)
 	end
 
 	if settingsTable.control.tail and settingsTable.control.tail.value.control then
 		local curNode = settingsTable.control.tail
 		if settingsTable.type == "Bar" then
 			while curNode do
-				GET.barPool:ReleaseObject(curNode.value.key)
+				UniversalTracker.barPool:ReleaseObject(curNode.value.key)
 				curNode = curNode.prev
 			end
 		elseif settingsTable.type == "Compact" then
 			while curNode do
-				GET.compactPool:ReleaseObject(curNode.value.key)
+				UniversalTracker.compactPool:ReleaseObject(curNode.value.key)
 				curNode = curNode.prev
 			end
 		end
@@ -728,10 +746,10 @@ function GET.freeLists(settingsTable)
 
 	settingsTable.control = { head = nil, tail = nil}
 
-	if settingsTable.animation.tail and settingsTable.animation.tail.value.animation then
+	if settingsTable.animation and settingsTable.animation.tail and settingsTable.animation.tail.value.animation then
 		local curNode = settingsTable.animation.tail
 		while curNode do
-			GET.barAnimationPool:ReleaseObject(curNode.value.key)
+			UniversalTracker.barAnimationPool:ReleaseObject(curNode.value.key)
 			curNode = curNode.prev
 		end
 	end
@@ -739,7 +757,7 @@ function GET.freeLists(settingsTable)
 	settingsTable.animation = { head = nil, tail = nil}
 end
 
-function GET.InitSingleDisplay(settingsTable)
+function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	local unitTag = nil
 	if settingsTable.targetType == "Player" then
@@ -755,91 +773,71 @@ function GET.InitSingleDisplay(settingsTable)
 	if unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Compact" then
 			if settingsTable.control.head then --bar panel
-				local currentControlNode = settingsTable.control.head
-				local currentAnimationNode = settingsTable.animation.head
-				while currentControlNode and currentAnimationNode do
-					GET.barPool:ReleaseObject(currentControlNode.value.key)
-					GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
-
-					currentAnimationNode = currentAnimationNode.next
-					currentControlNode = currentControlNode.next
-				end
-				settingsTable.control = {object = nil, key = nil}
-				settingsTable.animation = {object = nil, key = nil}
-				settingsTable.control.object, settingsTable.control.key = GET.compactPool:AcquireObject()
+				UniversalTracker.freeLists(settingsTable)
+				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
 			elseif not settingsTable.control.object then
-				settingsTable.control.object, settingsTable.control.key = GET.compactPool:AcquireObject()
-				settingsTable.id = GET.nextID
-				GET.nextID = GET.nextID + 1
+				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
+				settingsTable.id = UniversalTracker.nextID
+				UniversalTracker.nextID = UniversalTracker.nextID + 1
 			elseif string.find(settingsTable.control.object:GetName(), "Bar") then
-				GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
-				GET.barPool:ReleaseObject(settingsTable.control.key)
-				settingsTable.control.object, settingsTable.control.key = GET.compactPool:AcquireObject()
+				UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation.key)
+				UniversalTracker.barPool:ReleaseObject(settingsTable.control.key)
+				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
 			end
 
 			InitCompact(settingsTable, unitTag, settingsTable.control.object)
 		elseif settingsTable.type == "Bar" then
 			if settingsTable.control.head then --bar panel
-				local currentControlNode = settingsTable.control.head
-				local currentAnimationNode = settingsTable.animation.head
-				while currentControlNode and currentAnimationNode do
-					GET.barPool:ReleaseObject(currentControlNode.value.key)
-					GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
-
-					currentAnimationNode = currentAnimationNode.next
-					currentControlNode = currentControlNode.next
-				end
-				settingsTable.control = {object = nil, key = nil}
-				settingsTable.animation = {object = nil, key = nil}
-				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
-				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
+				UniversalTracker.freeLists(settingsTable)
+				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
+				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
 			elseif not settingsTable.control.object then
-				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
-				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
-				settingsTable.id = GET.nextID
-				GET.nextID = GET.nextID + 1
+				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
+				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
+				settingsTable.id = UniversalTracker.nextID
+				UniversalTracker.nextID = UniversalTracker.nextID + 1
 			elseif string.find(settingsTable.control.object:GetName(), "Compact") then
-				GET.compactPool:ReleaseObject(settingsTable.control.key)
-				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
-				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
+				UniversalTracker.compactPool:ReleaseObject(settingsTable.control.key)
+				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
+				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
 			end
 			InitBar(settingsTable, unitTag, settingsTable.control.object, settingsTable.animation.object)
 		end
 	elseif unitTag == "boss" or unitTag == "group" then
 		if settingsTable.control.object then
-			GET.barPool:ReleaseObject(settingsTable.control.key)
+			UniversalTracker.barPool:ReleaseObject(settingsTable.control.key)
 		end
 		if settingsTable.animation and settingsTable.animation.object then
-			GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
+			UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation.key)
 		end
 
 		if settingsTable.control.head and settingsTable.control.head.value.control then
 			--Is the initialized list of appropriate type?
 			if not string.find(settingsTable.control.head.value.control:GetName(), settingsTable.type) then
-				GET.freeLists(settingsTable)
+				UniversalTracker.freeLists(settingsTable)
 				InitList(settingsTable, unitTag)
 			else
-				GET.refreshList(settingsTable, unitTag)
+				UniversalTracker.refreshList(settingsTable, unitTag)
 			end
 		else
 			--initialize current.
 			InitList(settingsTable, unitTag)
-			settingsTable.id = GET.nextID
-			GET.nextID = GET.nextID + 1
+			settingsTable.id = UniversalTracker.nextID
+			UniversalTracker.nextID = UniversalTracker.nextID + 1
 		end
 
 		--register events.
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
-		EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 		if unitTag == "boss" then
-			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
-			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
-			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
-			EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
-			EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+			EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 		elseif unitTag == "group" then
-			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
-			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
 		end
 	end
 end
@@ -847,7 +845,7 @@ end
 local function fragmentChange(oldState, newState)
 	if newState == SCENE_FRAGMENT_SHOWN then
 		--unhide everything.
-		for k, v in pairs(GET.savedVariables.trackerList) do
+		for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 			if v.control then
 				if v.control.object then
 					v.control.object:SetHidden(v.hidden)
@@ -862,7 +860,7 @@ local function fragmentChange(oldState, newState)
 				end
 			end
 		end
-		for k, v in pairs(GET.characterSavedVariables.trackerList) do
+		for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 			if v.control then
 				if v.control.object then
 					v.control.object:SetHidden(v.hidden)
@@ -879,7 +877,7 @@ local function fragmentChange(oldState, newState)
 		end
 	elseif newState == SCENE_FRAGMENT_HIDDEN then
 		--hide everything.
-		for k, v in pairs(GET.savedVariables.trackerList) do
+		for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 			if v.control then
 				if v.control.object then
 					v.control.object:SetHidden(true)
@@ -894,7 +892,7 @@ local function fragmentChange(oldState, newState)
 				end
 			end
 		end
-		for k, v in pairs(GET.characterSavedVariables.trackerList) do
+		for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 			if v.control then
 				if v.control.object then
 					v.control.object:SetHidden(true)
@@ -913,29 +911,29 @@ local function fragmentChange(oldState, newState)
 end
 
 -- TODO pool releases for group/boss bars
-function GET.Initialize()
-	GET.savedVariables = ZO_SavedVars:NewAccountWide("GETSavedVariables", 1, nil, GET.defaults, GetWorldName())
-	GET.characterSavedVariables = ZO_SavedVars:NewCharacterIdSettings("GETSavedVariables", 1, nil, GET.defaults, GetWorldName())
+function UniversalTracker.Initialize()
+	UniversalTracker.savedVariables = ZO_SavedVars:NewAccountWide("UniversalTrackerSavedVariables", 1, nil, UniversalTracker.defaults, GetWorldName())
+	UniversalTracker.characterSavedVariables = ZO_SavedVars:NewCharacterIdSettings("UniversalTrackerSavedVariables", 1, nil, UniversalTracker.defaults, GetWorldName())
 
-	GET.chat = LibChatMessage("GET", "GET")
+	UniversalTracker.chat = LibChatMessage("UniversalTracker", "UniversalTracker")
 
-    GET.barPool = ZO_ControlPool:New("SingleBarDuration", GuiRoot)
-    GET.barPool:SetResetFunction(function(control)
+    UniversalTracker.barPool = ZO_ControlPool:New("SingleBarDuration", GuiRoot)
+    UniversalTracker.barPool:SetResetFunction(function(control)
 			control:SetHidden(true)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_COMBAT_EVENT)
-			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
+			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 	end)
-	GET.barPool:SetCustomResetBehavior(function(control)
-		for k, v  in pairs(GET.savedVariables.trackerList) do
+	UniversalTracker.barPool:SetCustomResetBehavior(function(control)
+		for k, v  in pairs(UniversalTracker.savedVariables.trackerList) do
 			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
 				return
 			end
 		end
-		for k, v  in pairs(GET.characterSavedVariables.trackerList) do
+		for k, v  in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
@@ -944,16 +942,16 @@ function GET.Initialize()
 		end
 	end)
 
-	GET.barAnimationPool = ZO_AnimationPool:New("SingleBarAnimation")
-	GET.barAnimationPool:SetCustomResetBehavior(function(animation)
-		for k, v  in pairs(GET.savedVariables.trackerList) do
+	UniversalTracker.barAnimationPool = ZO_AnimationPool:New("SingleBarAnimation")
+	UniversalTracker.barAnimationPool:SetCustomResetBehavior(function(animation)
+		for k, v  in pairs(UniversalTracker.savedVariables.trackerList) do
 			if v.animation and v.animation.object == animation then
 				v.animation.object = nil
 				v.animation.key = nil
 				return
 			end
 		end
-		for k, v  in pairs(GET.characterSavedVariables.trackerList) do
+		for k, v  in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 			if v.animation and v.animation.object == animation then
 				v.animation.object = nil
 				v.animation.key = nil
@@ -962,23 +960,23 @@ function GET.Initialize()
 		end
 	end)
 
-	GET.compactPool = ZO_ControlPool:New("SingleCompactTracker", GuiRoot)
-    GET.compactPool:SetResetFunction(function(control)
+	UniversalTracker.compactPool = ZO_ControlPool:New("SingleCompactTracker", GuiRoot)
+    UniversalTracker.compactPool:SetResetFunction(function(control)
 			control:SetHidden(true)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_COMBAT_EVENT)
-			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
+			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 	end)
-	GET.compactPool:SetCustomResetBehavior(function(control)
-		for k, v  in pairs(GET.savedVariables.trackerList) do
+	UniversalTracker.compactPool:SetCustomResetBehavior(function(control)
+		for k, v  in pairs(UniversalTracker.savedVariables.trackerList) do
 			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
 				return
 			end
 		end
-		for k, v  in pairs(GET.characterSavedVariables.trackerList) do
+		for k, v  in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 			if v.control and v.control.object == control then
 				v.control.object = nil
 				v.control.key = nil
@@ -987,37 +985,37 @@ function GET.Initialize()
 		end
 	end)
 
-    GET.InitSettings()
+    UniversalTracker.InitSettings()
 
-	for k, v in pairs (GET.savedVariables.trackerList) do
-		GET.savedVariables.trackerList.control = {object = nil, key = nil}
-		GET.InitSingleDisplay(v)
+	for k, v in pairs (UniversalTracker.savedVariables.trackerList) do
+		UniversalTracker.savedVariables.trackerList.control = {object = nil, key = nil}
+		UniversalTracker.InitSingleDisplay(v)
 	end
-	for k, v in pairs (GET.characterSavedVariables.trackerList) do
-		GET.characterSavedVariables.trackerList.control = {object = nil, key = nil}
-		GET.InitSingleDisplay(v)
+	for k, v in pairs (UniversalTracker.characterSavedVariables.trackerList) do
+		UniversalTracker.characterSavedVariables.trackerList.control = {object = nil, key = nil}
+		UniversalTracker.InitSingleDisplay(v)
 	end
 
 	HUD_FRAGMENT:RegisterCallback("StateChange", fragmentChange)
 
-	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
 		if tag == "player" or string.find(tag, "group") or string.find(tag, "boss") then
-			GET.unitIDs[unitID] = tag
+			UniversalTracker.unitIDs[unitID] = tag
 		end
 	end)
 
-	local function resetIDList() GET.unitIDs = {} end
-	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)
-	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDClear", EVENT_GROUP_MEMBER_JOINED, resetIDList)
-	EVENT_MANAGER:RegisterForEvent(GET.name.."_IDClear", EVENT_GROUP_MEMBER_LEFT, resetIDList)
+	local function resetIDList() UniversalTracker.unitIDs = {} end
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_GROUP_MEMBER_JOINED, resetIDList)
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_GROUP_MEMBER_LEFT, resetIDList)
 
 end
 
-function GET.OnAddOnLoaded(event, addonName)
-	if addonName == GET.name then
-		GET.Initialize()
-		EVENT_MANAGER:UnregisterForEvent(GET.name, EVENT_ADD_ON_LOADED)
+function UniversalTracker.OnAddOnLoaded(event, addonName)
+	if addonName == UniversalTracker.name then
+		UniversalTracker.Initialize()
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name, EVENT_ADD_ON_LOADED)
 	end
 end
 
-EVENT_MANAGER:RegisterForEvent(GET.name, EVENT_ADD_ON_LOADED, GET.OnAddOnLoaded)
+EVENT_MANAGER:RegisterForEvent(UniversalTracker.name, EVENT_ADD_ON_LOADED, UniversalTracker.OnAddOnLoaded)
