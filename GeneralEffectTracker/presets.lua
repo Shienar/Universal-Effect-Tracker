@@ -127,7 +127,7 @@ GET.presets = {
             key = nil,
         },
         name = "Stagger Preset",
-        type = "Simple",
+        type = "Compact",
         targetType = "Player",
         textSettings = {
             duration = {
@@ -174,7 +174,7 @@ GET.presets = {
                     a = 1,
                 },
                 textScale = 1,
-                x = 5,
+                x = 0,
                 y = 0,
                 hidden = false,
             },
@@ -205,7 +205,7 @@ GET.presets = {
             key = nil,
         },
         name = "Relentless Focus Preset",
-        type = "Simple",
+        type = "Compact",
         targetType = "Player",
         textSettings = {
             duration = {
@@ -252,7 +252,7 @@ GET.presets = {
                     a = 1,
                 },
                 textScale = 1,
-                x = 5,
+                x = 0,
                 y = 0,
                 hidden = false,
             },
@@ -280,7 +280,7 @@ GET.presets = {
             key = nil,
         },
         name = "Merciless Resolve Preset",
-        type = "Simple",
+        type = "Compact",
         targetType = "Player",
         textSettings = {
             duration = {
@@ -327,7 +327,7 @@ GET.presets = {
                     a = 1,
                 },
                 textScale = 1,
-                x = 5,
+                x = 0,
                 y = 0,
                 hidden = false,
             },
@@ -432,7 +432,7 @@ GET.presets = {
             key = nil,
         },
         name = "Martial Knowledge Preset",
-        type = "Simple",
+        type = "Compact",
         targetType = "Reticle Target",
         textSettings = {
             duration = {
@@ -479,7 +479,7 @@ GET.presets = {
                     a = 1,
                 },
                 textScale = 1,
-                x = 5,
+                x = 0,
                 y = 0,
                 hidden = false,
             },

@@ -26,7 +26,7 @@ local newTracker = {
 		key = nil,
 	},
 	name = "",
-	type = "Simple",
+	type = "Compact",
 	targetType = "Player",
 	textSettings = {
 		duration = {
@@ -73,7 +73,7 @@ local newTracker = {
 				a = 1,
 			},
 			textScale = 1,
-			x = 5,
+			x = 0,
 			y = 0,
 			hidden = false,
 		},
@@ -114,17 +114,14 @@ end
 local function temporarilyShowControl(index) 
     --Hide control 5 seconds after most recent change.
 	--This function is safe to call when no controls exist.
+
 	local control
-	local isHidden
 	local controlHead
-	if not isCharacterSettings then
+	if not isCharacterSettings and GET.savedVariables.trackerList[index] then
 		control = GET.savedVariables.trackerList[index].control.object
-		isHidden = GET.savedVariables.trackerList[index].hidden
 		controlHead = GET.savedVariables.trackerList[index].control.head
-		
-	else
+	elseif GET.characterSavedVariables.trackerList[index] then
 		control = GET.characterSavedVariables.trackerList[index].control.object
-		isHidden = GET.characterSavedVariables.trackerList[index].hidden
 		controlHead = GET.characterSavedVariables.trackerList[index].control.head
 	end
 	if control then
@@ -135,7 +132,7 @@ local function temporarilyShowControl(index)
 			end
 			EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..control:GetName())
 		end)
-	elseif controlHead then
+	elseif controlHead and controlHead.value.control then
 		local curNode = controlHead
 		while curNode do
 			curNode.value.control:SetHidden(false)
@@ -187,22 +184,23 @@ local function copyTracker(source, nullifyControls)
 				end
 			end
 
-			
-			cur_source = source.animation.head
-			dest.animation = {
-				head = {next = cur_source.next, prev = cur_source.prev, 
-					value = {animation = cur_source.value.animation, key = cur_source.value.key}}, 
-				tail = nil
-			}
-			cur_dest = dest.animation.head
-			cur_source = cur_source.next
-			cur_dest = cur_dest.next
-			while cur_source do
-				cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
-					value = {animation = cur_source.value.animation, key = cur_source.value.key}}
+			if source.	animation and source.animation.head then
+				cur_source = source.animation.head
+				dest.animation = {
+					head = {next = cur_source.next, prev = cur_source.prev, 
+						value = {animation = cur_source.value.animation, key = cur_source.value.key}}, 
+					tail = nil
+				}
+				cur_dest = dest.animation.head
 				cur_source = cur_source.next
-				if not cur_source then
-					dest.animation.tail = cur_dest
+				cur_dest = cur_dest.next
+				while cur_source do
+					cur_dest.next = {next = cur_source.next, prev = cur_source.prev, 
+						value = {animation = cur_source.value.animation, key = cur_source.value.key}}
+					cur_source = cur_source.next
+					if not cur_source then
+						dest.animation.tail = cur_dest
+					end
 				end
 			end
 		else
@@ -272,112 +270,114 @@ function GET.InitSettings()
 
 			--Account trackers
 			for k, v in pairs(GET.savedVariables.trackerList) do
-				settings:AddSetting({
-					type = LibHarvensAddonSettings.ST_BUTTON,
-					label = GET.savedVariables.trackerList[k].name, 
-					buttonText = GET.savedVariables.trackerList[k].name, 
-					tooltip = "Edit this tracker.",
-					clickHandler = function(control)
-						editIndex = k
-						isCharacterSettings = false
-						newTracker = copyTracker(GET.savedVariables.trackerList[editIndex])
-						currentPageIndex = 2 + editIndex
-						loadMenu(settingPages.newTracker, 2)
+				if v.name then --avoids creating blank entries in the list.
+					settings:AddSetting({
+						type = LibHarvensAddonSettings.ST_BUTTON,
+						label = GET.savedVariables.trackerList[k].name, 
+						buttonText = GET.savedVariables.trackerList[k].name, 
+						tooltip = "Edit this tracker.",
+						clickHandler = function(control)
+							editIndex = k
+							isCharacterSettings = false
+							newTracker = copyTracker(GET.savedVariables.trackerList[editIndex])
+							currentPageIndex = 2 + editIndex
+							loadMenu(settingPages.newTracker, 2)
 
-						--dynamically add the extra ability IDs
-						for i = 1, (#GET.savedVariables.trackerList[editIndex].abilityIDs) do
-							local newIndex = 7 + i
-							settings:AddSetting({
-								type = setNewAbilityID.type,
-								label = setNewAbilityID.label,
-								tooltip = setNewAbilityID.tooltip,
-								textType = setNewAbilityID.textType,
-								maxChars = setNewAbilityID.maxChars,
-								getFunction = function() return newTracker.abilityIDs[i] end,
-								setFunction = function(value) 
-									newTracker.abilityIDs[i] = value
-								end,
-								default = newTracker.abilityIDs[i]
-							}, newIndex, false)
-						end
-
-						--Modify settings as needed to fit tracker type
-						if newTracker.type == "Bar" then
-							local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-							if stacksIndex then
-								settings:RemoveSettings(stacksIndex, 6, false)
-								settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
-														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
-														stacksIndex, false)
+							--dynamically add the extra ability IDs
+							for i = 1, (#GET.savedVariables.trackerList[editIndex].abilityIDs) do
+								local newIndex = 7 + i
+								settings:AddSetting({
+									type = setNewAbilityID.type,
+									label = setNewAbilityID.label,
+									tooltip = setNewAbilityID.tooltip,
+									textType = setNewAbilityID.textType,
+									maxChars = setNewAbilityID.maxChars,
+									getFunction = function() return newTracker.abilityIDs[i] end,
+									setFunction = function(value) 
+										newTracker.abilityIDs[i] = value
+									end,
+									default = newTracker.abilityIDs[i]
+								}, newIndex, false)
 							end
-						else
-							local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-							if nameIndex then
-								settings:RemoveSettings(nameIndex, 12, false)
-								settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+
+							--Modify settings as needed to fit tracker type
+							if newTracker.type == "Bar" then
+								local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+								if stacksIndex then
+									settings:RemoveSettings(stacksIndex, 6, false)
+									settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
+															stacksIndex, false)
+								end
+							else
+								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
+								if nameIndex then
+									settings:RemoveSettings(nameIndex, 6, false)
+									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+								end
 							end
+
+							--Add the remove and copy buttons
+							settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
+
 						end
-
-						--Add the remove and copy buttons
-						settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
-
-					end
-				}, #settings.settings - 2, false)
+					}, #settings.settings - 2, false)
+				end
 			end
 
 			--Character trackers
 			for k, v in pairs(GET.characterSavedVariables.trackerList) do
-				settings:AddSetting({
-					type = LibHarvensAddonSettings.ST_BUTTON,
-					label = GET.characterSavedVariables.trackerList[k].name, 
-					buttonText = GET.characterSavedVariables.trackerList[k].name, 
-					tooltip = "Edit this tracker.",
-					clickHandler = function(control)
-						editIndex = k
-						isCharacterSettings = true
-						newTracker = copyTracker(GET.characterSavedVariables.trackerList[editIndex])
-						currentPageIndex = 2 + editIndex
-						loadMenu(settingPages.newTracker, 2)
+				if v.name then
+					settings:AddSetting({
+						type = LibHarvensAddonSettings.ST_BUTTON,
+						label = GET.characterSavedVariables.trackerList[k].name, 
+						buttonText = GET.characterSavedVariables.trackerList[k].name, 
+						tooltip = "Edit this tracker.",
+						clickHandler = function(control)
+							editIndex = k
+							isCharacterSettings = true
+							newTracker = copyTracker(GET.characterSavedVariables.trackerList[editIndex])
+							currentPageIndex = 2 + editIndex
+							loadMenu(settingPages.newTracker, 2)
 
-						--dynamically add the extra ability IDs
-						for i = 1, (#GET.characterSavedVariables.trackerList[editIndex].abilityIDs) do
-							local newIndex = 7 + i
-							settings:AddSetting({
-								type = setNewAbilityID.type,
-								label = setNewAbilityID.label,
-								tooltip = setNewAbilityID.tooltip,
-								textType = setNewAbilityID.textType,
-								maxChars = setNewAbilityID.maxChars,
-								getFunction = function() return newTracker.abilityIDs[i] end,
-								setFunction = function(value) 
-									newTracker.abilityIDs[i] = value
-								end,
-								default = newTracker.abilityIDs[i]
-							}, newIndex, false)
-						end
-
-						--Modify settings as needed to fit tracker type
-						if newTracker.type == "Bar" then
-							local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-							if stacksIndex then
-								settings:RemoveSettings(stacksIndex, 6, false)
-								settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
-														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
-														stacksIndex, false)
+							--dynamically add the extra ability IDs
+							for i = 1, (#GET.characterSavedVariables.trackerList[editIndex].abilityIDs) do
+								local newIndex = 7 + i
+								settings:AddSetting({
+									type = setNewAbilityID.type,
+									label = setNewAbilityID.label,
+									tooltip = setNewAbilityID.tooltip,
+									textType = setNewAbilityID.textType,
+									maxChars = setNewAbilityID.maxChars,
+									getFunction = function() return newTracker.abilityIDs[i] end,
+									setFunction = function(value) 
+										newTracker.abilityIDs[i] = value
+									end,
+									default = newTracker.abilityIDs[i]
+								}, newIndex, false)
 							end
-						else
-							local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-							if nameIndex then
-								settings:RemoveSettings(nameIndex, 12, false)
-								settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+
+							--Modify settings as needed to fit tracker type
+							if newTracker.type == "Bar" then
+								local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+								if stacksIndex then
+									settings:RemoveSettings(stacksIndex, 6, false)
+									settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
+															stacksIndex, false)
+								end
+							else
+								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
+								if nameIndex then
+									settings:RemoveSettings(nameIndex, 6, false)
+									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+								end
 							end
+
+							--Add the remove button
+							settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
+
 						end
-
-						--Add the remove button
-						settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
-
-					end
-				}, #settings.settings - 1, false)
+					}, #settings.settings - 1, false)
+				end
 			end
 
 			LibHarvensAddonSettings.list:SetSelectedIndexWithoutAnimation(2)
@@ -401,7 +401,7 @@ function GET.InitSettings()
 					key = nil,
 				},
 				name = "",
-				type = "Simple",
+				type = "Compact",
 				targetType = "Player",
 				textSettings = {
 					duration = {
@@ -448,7 +448,7 @@ function GET.InitSettings()
 							a = 1,
 						},
 						textScale = 1,
-						x = 5,
+						x = 0,
 						y = 0,
 						hidden = false,
 					},
@@ -505,10 +505,12 @@ function GET.InitSettings()
 		tooltip = "PERMANENTLY removes this tracker.\n\
 					This action cannot be undone.",
 		clickHandler = function(control)
-			if newTracker.control.object then 
+
+			if newTracker.control.object then
+				EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..newTracker.control.object:GetName())
 				if newTracker.control.object:GetNamedChild("Stacks") then
-					--simple
-					GET.simplePool:ReleaseObject(newTracker.control.key)
+					--compact
+					GET.compactPool:ReleaseObject(newTracker.control.key)
 				else
 					--bar 
 					GET.barPool:ReleaseObject(newTracker.control.key)
@@ -517,6 +519,8 @@ function GET.InitSettings()
 			if newTracker.animation.object then
 				GET.barAnimationPool:ReleaseObject(newTracker.animation.key)
 			end
+
+			GET.freeLists(newTracker)
 
 			--table.remove isn't saving changes for some reason
 			if not isCharacterSettings then
@@ -635,7 +639,7 @@ function GET.InitSettings()
 		label = "Tracker Type",
 		tooltip = "Choose the display type.",
 		items = {
-			{name = "Simple", data = 1},
+			{name = "Compact", data = 1},
 			{name = "Bar", data = 2},
 		},
 		getFunction = function() return newTracker.type end,
@@ -645,14 +649,13 @@ function GET.InitSettings()
 				local stacksIndex = settings:GetIndexOf(stacksLabel, true)
 				if stacksIndex then
 					settings:RemoveSettings(stacksIndex, 6, false)
-					settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
-											unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
+					settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
 										stacksIndex, false)
 				end
 			else
 				local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
 				if nameIndex then
-					settings:RemoveSettings(nameIndex, 12, false)
+					settings:RemoveSettings(nameIndex, 6, false)
 					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
 				end
 			end
@@ -688,8 +691,9 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.overrideTexturePath = value
 			if newTracker.control.object then
-				-- todo barlist
 				newTracker.control.object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -705,6 +709,8 @@ function GET.InitSettings()
 			newTracker.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:SetHidden(value)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			if value == false then
 				temporarilyShowControl(editIndex)
@@ -776,9 +782,10 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.x = value
 			if newTracker.control.object then
-				--todo bar list
 				newTracker.control.object:ClearAnchors()
 				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -798,9 +805,10 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.y = value
 			if newTracker.control.object then
-				--todo bar list
 				newTracker.control.object:ClearAnchors()
 				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -820,8 +828,9 @@ function GET.InitSettings()
 		setFunction = function(value)
 			newTracker.scale = value
 			if newTracker.control.object then
-				--todo bar list
 				newTracker.control.object:SetScale(value)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -845,6 +854,8 @@ function GET.InitSettings()
 				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetHidden(value)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -865,6 +876,8 @@ function GET.InitSettings()
 				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -887,6 +900,8 @@ function GET.InitSettings()
 				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetScale(newTracker.textSettings.duration.textScale)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -915,6 +930,8 @@ function GET.InitSettings()
 					child:ClearAnchors()
 					child:SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -933,16 +950,18 @@ function GET.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.y = value
-			if newTracker.control then
-				local child = newTracker.control:GetNamedChild("Duration")
+			if newTracker.control.object then
+				local child = newTracker.control.object:GetNamedChild("Duration")
 				if not child then 
-					child = newTracker.control:GetNamedChild("Bar"):GetNamedChild("Duration") 
+					child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") 
 					child:ClearAnchors()
-					child:SetAnchor(RIGHT, newTracker.control:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(RIGHT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				else
 					child:ClearAnchors()
-					child:SetAnchor(CENTER, newTracker.control, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -958,6 +977,8 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):SetHidden(value)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -976,6 +997,8 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -996,6 +1019,8 @@ function GET.InitSettings()
 			newTracker.textSettings.stacks.textScale = value
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1017,6 +1042,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1038,6 +1065,8 @@ function GET.InitSettings()
 			if newTracker.contro.objectl then
 				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1053,6 +1082,8 @@ function GET.InitSettings()
 			newTracker.textSettings.abilityLabel.hidden = value 
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1069,8 +1100,10 @@ function GET.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.abilityLabel.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control then
-				newTracker.control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
+			if newTracker.control and newTracker.control.object then
+				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1091,6 +1124,8 @@ function GET.InitSettings()
 			newTracker.textSettings.abilityLabel.textScale = value
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1112,6 +1147,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1133,6 +1170,8 @@ function GET.InitSettings()
 			if newTracker.control.object then
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
 				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1147,7 +1186,13 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.hidden = value 
 			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
+				if newTracker.control.object:GetNamedChild("UnitName") then
+					newTracker.control.object:GetNamedChild("UnitName"):SetHidden(value)
+				else
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
+				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1165,7 +1210,13 @@ function GET.InitSettings()
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.unitLabel.color = {r = r, g = g, b = b, a = a}
 			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+				if newTracker.control.object:GetNamedChild("UnitName") then
+					newTracker.control.object:GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+				else
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1185,7 +1236,13 @@ function GET.InitSettings()
 		setFunction = function(value)
 			newTracker.textSettings.unitLabel.textScale = value
 			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+				if newTracker.control.object:GetNamedChild("UnitName") then
+					newTracker.control.object:GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+				else
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1205,8 +1262,15 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.x  = value
 			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+				if newTracker.control.object:GetNamedChild("UnitName") then
+					newTracker.control.object:GetNamedChild("UnitName"):ClearAnchors()
+					newTracker.control.object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, newTracker.control.object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+				else
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
+				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1226,8 +1290,15 @@ function GET.InitSettings()
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.y = value
 			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+				if newTracker.control.object:GetNamedChild("UnitName") then
+					newTracker.control.object:GetNamedChild("UnitName"):ClearAnchors()
+					newTracker.control.object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, newTracker.control.object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+				else
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
+				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				GET.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1293,9 +1364,11 @@ function GET.InitSettings()
 			if not isCharacterSettings then
 				GET.savedVariables.trackerList[index] = copyTracker(newTracker)
 				GET.InitSingleDisplay(GET.savedVariables.trackerList[index]) --Load new changes.
+				temporarilyShowControl(index)
 			else
 				GET.characterSavedVariables.trackerList[index] = copyTracker(newTracker)
 				GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[index]) --Load new changes.
+				temporarilyShowControl(index)
 			end
 			
 			
@@ -1312,27 +1385,12 @@ function GET.InitSettings()
 			loadMenu(settingPages.mainMenu, currentPageIndex)
 			if editIndex >= 0 then
 				if not isCharacterSettings then
-					if GET.savedVariables.trackerList[editIndex].type ~= newTracker.type then
-						if newTracker.type == "Simple" then
-							GET.simplePool:ReleaseObject(newTracker.control.key)
-						elseif newTracker.type == "Bar" then
-							GET.barAnimationPool:ReleaseObject(newTracker.animation.key)
-							GET.barPool:ReleaseObject(newTracker.control.key)
-						end
-					end
 					GET.InitSingleDisplay(GET.savedVariables.trackerList[editIndex]) --Load old changes
+					temporarilyShowControl(editIndex)
 				else
-					if GET.characterSavedVariables.trackerList[editIndex].type ~= newTracker.type then
-						if newTracker.type == "Simple" then
-							GET.simplePool:ReleaseObject(newTracker.control.key)
-						elseif newTracker.type == "Bar" then
-							GET.barAnimationPool:ReleaseObject(newTracker.animation.key)
-							GET.barPool:ReleaseObject(newTracker.control.key)
-						end
-					end
 					GET.InitSingleDisplay(GET.characterSavedVariables.trackerList[editIndex]) --Load old changes
+					temporarilyShowControl(editIndex)
 				end
-
 			end
 			editIndex = -1
 		end
@@ -1577,6 +1635,7 @@ function GET.InitSettings()
 									positionLabel, newScale, newXOffset, newYOffset,
 									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
+														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, cancelButton, saveButton}
 	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, 
 									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, synergyPreset,

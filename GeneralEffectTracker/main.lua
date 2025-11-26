@@ -1,40 +1,13 @@
 GET = GET or {}
 GET.name = "GeneralEffectTracker"
 
---[[
-	TODO LIST:
-		-- Group/Boss buff panels.
-			- Bar:
-				- changes in the settings menu should reflect immediately.
-			- Simple:
-				- Create a table. (new control)
-					- Header row is 1 column equal to the assigned tracker name.
-					- Column 1: Texture
-					- Column 2: Unit Name
-					- Column 3: Duration
-						- Add a stack indicator if applicable (e.g. x3)
-					- Row count is fixed  
-		-- Make the bar pretty
-			-- Bar background color settings
-			-- Bar border color settings
-			-- Bar Animation Color Settings
-			-- Bar width/height ratio
-		-- Allow for LibCombatAlerts Positioning.
-			- Only when editing existing
-			- Just search for the y offsets of each type and add there.
-
-	KNOWN BUGS:
-		-- reloading ui will hide the boss panels until an EVENT_BOSSES_CHANGED event.
-]]
-
 GET.defaults = {
 }
 
 GET.unitIDs = {
-
 }
 
-local function InitSimple(settingsTable, unitTag, control)
+local function InitCompact(settingsTable, unitTag, control)
 	-- Assign values to created controls.
 
 	control:ClearAnchors()
@@ -44,20 +17,28 @@ local function InitSimple(settingsTable, unitTag, control)
 	local textureControl = control:GetNamedChild("Texture")
 	local durationControl = control:GetNamedChild("Duration")
 	local stackControl = control:GetNamedChild("Stacks")
+	local unitNameControl = control:GetNamedChild("UnitName")
 
 	durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
 	durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
 	durationControl:SetScale(settingsTable.textSettings.duration.textScale)
 	durationControl:ClearAnchors()
-	durationControl:SetAnchor(CENTER, simpleDurationControl, CENTER, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+	durationControl:SetAnchor(CENTER, control, CENTER, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
 	durationControl:SetText("")
 	
 	stackControl:SetHidden(settingsTable.textSettings.stacks.hidden)
 	stackControl:SetColor(settingsTable.textSettings.stacks.color.r, settingsTable.textSettings.stacks.color.g, settingsTable.textSettings.stacks.color.b, settingsTable.textSettings.stacks.color.a)
 	stackControl:SetScale(settingsTable.textSettings.stacks.textScale)
 	stackControl:ClearAnchors()
-	stackControl:SetAnchor(TOPRIGHT, simpleDurationControl, TOPRIGHT, settingsTable.textSettings.stacks.x - 5, settingsTable.textSettings.stacks.y)
+	stackControl:SetAnchor(TOPRIGHT, control, TOPRIGHT, settingsTable.textSettings.stacks.x - 5, settingsTable.textSettings.stacks.y)
 	stackControl:SetText("")
+
+	unitNameControl:SetHidden(settingsTable.textSettings.unitLabel.hidden)
+	unitNameControl:SetColor(settingsTable.textSettings.unitLabel.color.r, settingsTable.textSettings.unitLabel.color.g, settingsTable.textSettings.unitLabel.color.b, settingsTable.textSettings.unitLabel.color.a)
+	unitNameControl:SetScale(settingsTable.textSettings.unitLabel.textScale)
+	unitNameControl:ClearAnchors()
+	unitNameControl:SetAnchor(BOTTOM, control, TOP, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
+	unitNameControl:SetText(GetUnitName(unitTag))
 
 	if settingsTable.overrideTexturePath == "" then
 		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
@@ -107,6 +88,7 @@ local function InitSimple(settingsTable, unitTag, control)
 
 	if unitTag == "reticleover" then
 		EVENT_MANAGER:RegisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
+			if GetUnitName(unitTag) ~= "" then unitNameControl:SetText(GetUnitName(unitTag)) end
 			if DoesUnitExist(unitTag) then
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, s, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
@@ -403,14 +385,20 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 end
 
-local function InitBarList(settingsTable, unitTag)
+local function InitList(settingsTable, unitTag)
 	settingsTable.control, settingsTable.animation = {head = nil, tail = nil}, {head = nil, tail = nil}
 
 	-- Initialize linked list with current bosses / group members
 	for i = 1, 12 do
-		if DoesUnitExist(unitTag..i) then
-			local newControl, newControlKey = GET.barPool:AcquireObject()
-			local newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+		if DoesUnitExist(unitTag..i) and not (unitTag == "boss" and IsUnitDead(unitTag..i)) then
+			local newControl, newControlKey
+			local newAnimation, newAnimationKey
+			if settingsTable.type == "Bar" then
+				newControl, newControlKey = GET.barPool:AcquireObject()
+				newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+			elseif settingsTable.type == "Compact" then
+				newControl, newControlKey = GET.compactPool:AcquireObject()
+			end
 
 			local newControlNode = {next = nil, prev = settingsTable.control.tail, value = {control = newControl, key = newControlKey, unitTag = unitTag..i}}
 			if settingsTable.control.tail then
@@ -420,41 +408,64 @@ local function InitBarList(settingsTable, unitTag)
 			end
 			settingsTable.control.tail = newControlNode
 
-			local newAnimationNode = { next = nil, prev = settingsTable.animation.tail, value = { animation = newAnimation, key = newAnimationKey } }
-			if settingsTable.animation.tail then
-				settingsTable.animation.tail.next = newAnimationNode
-			else
-				settingsTable.animation.head = newAnimationNode
+			if settingsTable.type == "Bar" then
+				local newAnimationNode = { next = nil, prev = settingsTable.animation.tail, value = { animation = newAnimation, key = newAnimationKey } }
+				if settingsTable.animation.tail then
+					settingsTable.animation.tail.next = newAnimationNode
+				else
+					settingsTable.animation.head = newAnimationNode
+				end
+				settingsTable.animation.tail = newAnimationNode
 			end
-			settingsTable.animation.tail = newAnimationNode
+			
 		end
 	end
 
-	local current_control = settingsTable.control.head
-	local current_animation = settingsTable.animation.head
-	while current_control and current_animation do
-		InitBar(settingsTable, current_control.value.unitTag, current_control.value.control, current_animation.value.animation)
-		if current_control.prev then
-			current_control.value.control:ClearAnchors()
-			current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 25)
+	if settingsTable.type == "Bar" then 
+		local current_control = settingsTable.control.head
+		local current_animation = settingsTable.animation.head
+		while current_control and current_animation do
+			InitBar(settingsTable, current_control.value.unitTag, current_control.value.control, current_animation.value.animation)
+			if current_control.prev then
+				current_control.value.control:ClearAnchors()
+				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+			end
+			current_control = current_control.next
+			current_animation = current_animation.next
 		end
-		current_control = current_control.next
-		current_animation = current_animation.next
+	elseif settingsTable.type == "Compact" then
+		local current_control = settingsTable.control.head
+		while current_control  do
+			InitCompact(settingsTable, current_control.value.unitTag, current_control.value.control)
+			if current_control.prev then
+				current_control.value.control:ClearAnchors()
+				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+			end
+			current_control = current_control.next
+		end
 	end
 end
 
 -- number of controls, control unit tag targets, anchors, etc.
-local function updateBarList(settingsTable, unitTag)
-	--Step 1: Removed linked list elements if the unittag's boss no longer exists.
+local function updateList(settingsTable, unitTag)
+	--Step 1: Removed linked list elements if the unittag's entity no longer exists.
 	local currentControlNode = settingsTable.control.head
-	local currentAnimationNode = settingsTable.animation.head
+	local currentAnimationNode = nil
+	if settingsTable.type == "Bar" then
+		currentAnimationNode = settingsTable.animation.head
+	end
 	while currentControlNode do
-		if not DoesUnitExist(currentControlNode.value.unitTag) then
+		if not DoesUnitExist(currentControlNode.value.unitTag) or (string.find(currentControlNode.value.unitTag, "boss") and IsUnitDead(currentControlNode.value.unitTag)) then
 			--update anchors
 			if currentControlNode.next and currentControlNode.next.value.control then
 				if currentControlNode.prev and currentControlNode.prev.value.control then
 					currentControlNode.next.value.control:ClearAnchors()
-					currentControlNode.next.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25)
+					if currentAnimationNode then
+						currentControlNode.next.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+					else
+						currentControlNode.next.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+					end
+					
 				else
 					--Position new head
 					currentControlNode.next.value.control:ClearAnchors()
@@ -463,17 +474,25 @@ local function updateBarList(settingsTable, unitTag)
 			end
 
 			--free objects
-			GET.barPool:ReleaseObject(currentControlNode.value.key)
-			GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
+			if currentAnimationNode then
+				GET.barPool:ReleaseObject(currentControlNode.value.key)
+				GET.barAnimationPool:ReleaseObject(currentAnimationNode.value.key)
+			else
+				GET.compactPool:ReleaseObject(currentControlNode.value.key)
+			end
 
 			--remove from table (leave for garbage collector)
 			if not currentControlNode.prev then --head
 				settingsTable.control.head = currentControlNode.next
-				settingsTable.animation.head = currentAnimationNode.next
+				if currentAnimationNode then
+					settingsTable.animation.head = currentAnimationNode.next
+				end
 
 				if settingsTable.control.head then
 					settingsTable.control.head.prev = nil
-					settingsTable.animation.head.prev = nil
+					if currentAnimationNode then
+						settingsTable.animation.head.prev = nil
+					end
 				end
 			else --not head
 				currentControlNode.prev.next = currentControlNode.next
@@ -481,119 +500,243 @@ local function updateBarList(settingsTable, unitTag)
 					currentControlNode.next.prev = currentControlNode.prev
 				end
 
-				currentAnimationNode.prev.next = currentAnimationNode.next
-				if currentAnimationNode.next then
-					currentAnimationNode.next.prev = currentAnimationNode.prev
+				if currentAnimationNode then
+					currentAnimationNode.prev.next = currentAnimationNode.next
+					if currentAnimationNode.next then
+						currentAnimationNode.next.prev = currentAnimationNode.prev
+					end
 				end
 			end
 
 			if currentControlNode == settingsTable.control.tail then
 				settingsTable.control.tail = currentControlNode.prev
-				settingsTable.animation.tail = currentAnimationNode.prev
+				if currentAnimationNode then
+					settingsTable.animation.tail = currentAnimationNode.prev
+				end
 			end
 			
 		end
+
 		currentControlNode = currentControlNode.next
-		currentAnimationNode = currentAnimationNode.next
+		if currentAnimationNode then
+			currentAnimationNode = currentAnimationNode.next
+		end
 	end
 	
 
 	--Step 2a: If the linked lists are empty, rebuild them.
 	if not settingsTable.control.head then
-		InitBarList(settingsTable, unitTag)
-	elseif false then
+		InitList(settingsTable, unitTag)
+	else
 		-- Step 2b: Else, Insert unaccounted for unitIDs into sorted positions within the linked list
-		local usedTags = {}
+		local unusedTags = {}
 		for i = 1, 12 do
-			if DoesUnitExist(unitTag..i) then usedTags[i] = true end
+			if DoesUnitExist(unitTag..i) and not (settingsTable.targetType == "Boss" and IsUnitDead(unitTag..i)) then unusedTags[i] = true end
+		end
+
+		-- remove used tags from unused list.
+		-- note that an index is only in the unused list if the corresponding unit exists.
+		currentControlNode = settingsTable.control.head
+		while currentControlNode do
+			local index = tonumber(string.gsub(currentControlNode.value.unitTag, "%D", ""))
+			if  unusedTags[index] then
+				unusedTags[index] = nil
+			end
+			currentControlNode = currentControlNode.next
 		end
 
 		currentControlNode = settingsTable.control.head
-		currentAnimationNode = settingsTable.animation.head
+		if settingsTable.type == "Bar" then
+			currentAnimationNode = settingsTable.animation.head
+		end
 		while currentControlNode do
-			local currentTagIndex = string.match(currentControlNode.value.unitTag, "%d+")
-			for k, v in pairs(usedTags) do
-				if currentTagIndex and k < tonumber(currentTagIndex) then
-					usedTags[k] = nil
+			local currentTagIndex = tonumber(string.gsub(currentControlNode.value.unitTag, "%D", ""))
+			for k, v in pairs(unusedTags) do
+				if currentTagIndex and k < currentTagIndex then
+					-- We've passed over the desired index. insert behind
+					unusedTags[k] = nil
+					
 					--object creation
-					local newControl, newControlKey = GET.barPool:AcquireObject()
-					local newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
-					InitBar(settingsTable, unitTag..k, newControl, newAnimation)
+					local newControl, newControlKey 
+					local newAnimation, newAnimationKey
+					if currentAnimationNode then
+						newControl, newControlKey = GET.barPool:AcquireObject()
+						newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+						InitBar(settingsTable, unitTag..k, newControl, newAnimation)
+					else
+						newControl, newControlKey = GET.compactPool:AcquireObject()
+						InitCompact(settingsTable, unitTag..k, newControl)
+					end
 
 					--List updates
 					if currentControlNode == settingsTable.control.head then
 						settingsTable.control.head = {next = settingsTable.control.head, prev = nil, value = {control = newControl, key = newControlKey, unitTag = unitTag..k}}
-						settingsTable.animation.head = {next = settingsTable.animation.head, prev = nil, value = {animation = newAnimation, key = newAnimationKey}}
+						if currentAnimationNode then
+							settingsTable.animation.head = {next = settingsTable.animation.head, prev = nil, value = {animation = newAnimation, key = newAnimationKey}}
+						end
 					else
 						local newControlNode = {next = currentControlNode, prev = currentControlNode.prev, value = {control = newControl, key = newControlKey, unitTag = unitTag..k}}
-						local newAnimationNode = {next = currentAnimationNode, prev = currentAnimationNode.prev, value = {animation = newAnimation, key = newAnimationKey}}
 						currentControlNode.prev.next = newControlNode
 						currentControlNode.prev =  newControlNode
-						currentAnimationNode.prev.next = newAnimationNode
-						currentAnimationNode.prev = newAnimationNode
+						local newAnimationNode
+						if currentAnimationNode then
+							newAnimationNode = {next = currentAnimationNode, prev = currentAnimationNode.prev, value = {animation = newAnimation, key = newAnimationKey}}
+							currentAnimationNode.prev.next = newAnimationNode
+							currentAnimationNode.prev = newAnimationNode
+						end
 					end
-
 
 					--Anchor updates
 					if newControl.prev then
 						newControl:ClearAnchors()
-						newControl:SetAnchor(TOPLEFT, newControl.prev.value.control, BOTTOMLEFT, 0, 25)
+						if currentAnimationNode then
+							newControl:SetAnchor(TOPLEFT, newControl.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+						else
+							newControl:SetAnchor(TOPLEFT, newControl.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+						end
+						
 					else
 						newControl:ClearAnchors()
 						newControl:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 					end
 					currentControlNode.value.control:ClearAnchors()
-					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25)
+					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
 				end
 			end
 			currentControlNode = currentControlNode.next
-			currentAnimationNode = currentAnimationNode.next
+			if currentAnimationNode then
+				currentAnimationNode = currentAnimationNode.next
+			end
 		end
 
 		--insert after tail
 		-- we know that the list isn't empty at this point.
-		for k, v in pairs(usedTags) do
+		for k, v in pairs(unusedTags) do
 			--object creation
-			local newControl, newControlKey = GET.barPool:AcquireObject()
-			local newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
-			InitBar(settingsTable, unitTag..k, newControl, newAnimation)
+			local newControl, newControlKey, newAnimation, newAnimationKey
+			if settingsTable.type == "Bar" then
+				newControl, newControlKey = GET.barPool:AcquireObject()
+				newAnimation, newAnimationKey = GET.barAnimationPool:AcquireObject()
+				InitBar(settingsTable, unitTag..k, newControl, newAnimation)
+
+				--list updates
+				local newAnimationNode = {next = nil, prev = settingsTable.animation.tail, value = {animation = newAnimation, key = newAnimationKey}}
+				settingsTable.animation.tail.next = newAnimationNode
+				settingsTable.animation.tail = newAnimationNode
+			elseif settingsTable.type == "Compact" then
+				newControl, newControlKey = GET.compactPool:AcquireObject()
+				InitCompact(settingsTable, unitTag..k, newControl)
+			end
 
 			--list updates
 			local newControlNode = {next = nil, prev = settingsTable.control.tail, value = {control = newControl, key = newControlKey, unitTag = unitTag..k}}
-			local newAnimationNode = {next = nil, prev = settingsTable.animation.tail, value = {animation = newAnimation, key = newAnimationKey}}
 			settingsTable.control.tail.next = newControlNode
-			settingsTable.animation.tail.next = newAnimationNode
 			settingsTable.control.tail = newControlNode
-			settingsTable.animation.tail = newAnimationNode
+
 
 			--anchor updates
 			newControl:ClearAnchors()
-			newControl:SetAnchor(TOPLEFT, newControlNode.prev.value.control, BOTTOMLEFT, 0, 25)
+			if settingsTable.type == "Bar" then
+				newControl:SetAnchor(TOPLEFT, newControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+			else
+				newControl:SetAnchor(TOPLEFT, newControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+			end
 		end
-		
 	end
 end
 
 -- settings (e.g font, scale, offset, etc.)
-local function refreshBarList(settingsTable, unitTag)
-	local current_control = settingsTable.control.head
-	local current_animation = settingsTable.animation.head
-	while current_control and current_control.value.control and current_animation and current_animation.value.control do
-		InitBar(settingsTable, unitTag, current_control.value.control, current_animation.value.animation)
-		current_control = current_control.next
-		current_animation = current_animation.next
+function GET.refreshList(settingsTable, unitTag)
+	if settingsTable.type == "Bar" then 
+		local current_control = settingsTable.control.head
+		local current_animation = settingsTable.animation.head
+		while current_control and current_control.value.control and current_animation and current_animation.value.animation do
+			InitBar(settingsTable, current_control.value.unitTag, current_control.value.control, current_animation.value.animation)
+			if current_control.prev then
+				current_control.value.control:ClearAnchors()
+				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+			end
+			current_control = current_control.next
+			current_animation = current_animation.next
+		end
+	elseif settingsTable.type == "Compact" then
+		local current_control = settingsTable.control.head
+		while current_control and current_control.value.control do
+			InitCompact(settingsTable, current_control.value.unitTag, current_control.value.control)
+			if current_control.prev then
+				current_control.value.control:ClearAnchors()
+				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+			end
+			current_control = current_control.next
+		end
 	end
 
 	--register events.
+	EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
+	EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+	EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
 	if unitTag == "boss" then
 		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateBarList(settingsTable, unitTag) end)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+		EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+	elseif unitTag == "group" then
 	elseif unitTag == "group" then
 		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
 		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateBarList(settingsTable, unitTag) end)
-		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateBarList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
 	end
+end
+
+
+function GET.freeLists(settingsTable)
+	-- Don't do anything if not passed linked lists.
+	if settingsTable.control.object or settingsTable.animation.object then
+		return
+	end
+
+	if settingsTable.id then
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED)
+		EVENT_MANAGER:UnregisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED)
+		EVENT_MANAGER:UnregisterForUpdate(GET.name.." move "..GET.savedVariables.trackerList[editIndex].id)
+	end
+
+	if settingsTable.control.tail and settingsTable.control.tail.value.control then
+		local curNode = settingsTable.control.tail
+		if settingsTable.type == "Bar" then
+			while curNode do
+				GET.barPool:ReleaseObject(curNode.value.key)
+				curNode = curNode.prev
+			end
+		elseif settingsTable.type == "Compact" then
+			while curNode do
+				GET.compactPool:ReleaseObject(curNode.value.key)
+				curNode = curNode.prev
+			end
+		end
+		
+	end
+
+	settingsTable.control = { head = nil, tail = nil}
+
+	if settingsTable.animation.tail and settingsTable.animation.tail.value.animation then
+		local curNode = settingsTable.animation.tail
+		while curNode do
+			GET.barAnimationPool:ReleaseObject(curNode.value.key)
+			curNode = curNode.prev
+		end
+	end
+
+	settingsTable.animation = { head = nil, tail = nil}
 end
 
 function GET.InitSingleDisplay(settingsTable)
@@ -610,7 +753,7 @@ function GET.InitSingleDisplay(settingsTable)
 	end
 
 	if unitTag == "player" or unitTag == "reticleover" then
-		if settingsTable.type == "Simple" then
+		if settingsTable.type == "Compact" then
 			if settingsTable.control.head then --bar panel
 				local currentControlNode = settingsTable.control.head
 				local currentAnimationNode = settingsTable.animation.head
@@ -623,18 +766,18 @@ function GET.InitSingleDisplay(settingsTable)
 				end
 				settingsTable.control = {object = nil, key = nil}
 				settingsTable.animation = {object = nil, key = nil}
-				settingsTable.control.object, settingsTable.control.key = GET.simplePool:AcquireObject()
+				settingsTable.control.object, settingsTable.control.key = GET.compactPool:AcquireObject()
 			elseif not settingsTable.control.object then
-				settingsTable.control.object, settingsTable.control.key = GET.simplePool:AcquireObject()
+				settingsTable.control.object, settingsTable.control.key = GET.compactPool:AcquireObject()
 				settingsTable.id = GET.nextID
 				GET.nextID = GET.nextID + 1
 			elseif string.find(settingsTable.control.object:GetName(), "Bar") then
 				GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
 				GET.barPool:ReleaseObject(settingsTable.control.key)
-				settingsTable.control.object, settingsTable.control.key = GET.simplePool:AcquireObject()
+				settingsTable.control.object, settingsTable.control.key = GET.compactPool:AcquireObject()
 			end
 
-			InitSimple(settingsTable, unitTag, settingsTable.control.object)
+			InitCompact(settingsTable, unitTag, settingsTable.control.object)
 		elseif settingsTable.type == "Bar" then
 			if settingsTable.control.head then --bar panel
 				local currentControlNode = settingsTable.control.head
@@ -655,41 +798,48 @@ function GET.InitSingleDisplay(settingsTable)
 				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
 				settingsTable.id = GET.nextID
 				GET.nextID = GET.nextID + 1
-			elseif string.find(settingsTable.control.object:GetName(), "Simple") then
-				GET.simplePool:ReleaseObject(settingsTable.control.key)
+			elseif string.find(settingsTable.control.object:GetName(), "Compact") then
+				GET.compactPool:ReleaseObject(settingsTable.control.key)
 				settingsTable.control.object, settingsTable.control.key = GET.barPool:AcquireObject()
 				settingsTable.animation.object, settingsTable.animation.key = GET.barAnimationPool:AcquireObject()
 			end
 			InitBar(settingsTable, unitTag, settingsTable.control.object, settingsTable.animation.object)
 		end
 	elseif unitTag == "boss" or unitTag == "group" then
-		if settingsTable.type == "Simple" then
+		if settingsTable.control.object then
+			GET.barPool:ReleaseObject(settingsTable.control.key)
+		end
+		if settingsTable.animation and settingsTable.animation.object then
+			GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
+		end
 
-		elseif settingsTable.type == "Bar" then
-			if  settingsTable.control.object then
-				GET.barPool:ReleaseObject(settingsTable.control.key)
-			end
-			if settingsTable.animation.object then
-				GET.barAnimationPool:ReleaseObject(settingsTable.animation.key)
-			end
-
-			if settingsTable.control.head then
-				refreshBarList(settingsTable, unitTag)
+		if settingsTable.control.head and settingsTable.control.head.value.control then
+			--Is the initialized list of appropriate type?
+			if not string.find(settingsTable.control.head.value.control:GetName(), settingsTable.type) then
+				GET.freeLists(settingsTable)
+				InitList(settingsTable, unitTag)
 			else
-				--initialize current.
-				InitBarList(settingsTable, unitTag)
-				settingsTable.id = GET.nextID
-				GET.nextID = GET.nextID + 1
+				GET.refreshList(settingsTable, unitTag)
 			end
+		else
+			--initialize current.
+			InitList(settingsTable, unitTag)
+			settingsTable.id = GET.nextID
+			GET.nextID = GET.nextID + 1
+		end
 
-			--register events.
-			if unitTag == "boss" then
-				EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateBarList(settingsTable, unitTag) end)
-			elseif unitTag == "group" then
-				EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateBarList(settingsTable, unitTag) end)
-				EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateBarList(settingsTable, unitTag) end)
-			end
-
+		--register events.
+		EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
+		EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+		if unitTag == "boss" then
+			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+			EVENT_MANAGER:AddFilterForEvent(GET.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+		elseif unitTag == "group" then
+			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(GET.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
 		end
 	end
 end
@@ -812,15 +962,15 @@ function GET.Initialize()
 		end
 	end)
 
-	GET.simplePool = ZO_ControlPool:New("SingleSimpleTracker", GuiRoot)
-    GET.simplePool:SetResetFunction(function(control)
+	GET.compactPool = ZO_ControlPool:New("SingleCompactTracker", GuiRoot)
+    GET.compactPool:SetResetFunction(function(control)
 			control:SetHidden(true)
 			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
 			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_EFFECT_CHANGED)
 			EVENT_MANAGER:UnregisterForEvent(GET.name..control:GetName(), EVENT_COMBAT_EVENT)
 			EVENT_MANAGER:UnregisterForUpdate(GET.name..control:GetName())
 	end)
-	GET.simplePool:SetCustomResetBehavior(function(control)
+	GET.compactPool:SetCustomResetBehavior(function(control)
 		for k, v  in pairs(GET.savedVariables.trackerList) do
 			if v.control and v.control.object == control then
 				v.control.object = nil
