@@ -427,6 +427,37 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 end
 
+-- Clears and updates all anchors in the list.
+-- Assumes controls have been acquired from pools and initialized.
+-- I initially chose to use linked lists to avoid having to do O(n) anchor adjustments, but 
+-- this will be necessary to easily support multiple columnns.
+local function UpdateListAnchors(settingsTable)
+	local currentControlNode = settingsTable.control.head
+
+	if not (currentControlNode and currentControlNode.value.control) then return end
+
+	currentControlNode.value.control:ClearAnchors()
+	currentControlNode.value.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
+	currentControlNode = currentControlNode.next
+	if settingsTable.type == "Bar" then	
+		while currentControlNode do
+			if currentControlNode.prev.value.control then
+				currentControlNode.value.control:ClearAnchors()
+				currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
+			end
+			currentControlNode = currentControlNode.next
+		end
+	elseif settingsTable.type == "Compact" then
+		while currentControlNode do
+			if currentControlNode.prev.value.control then
+				currentControlNode.value.control:ClearAnchors()
+				currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
+			end
+			currentControlNode = currentControlNode.next
+		end
+	end
+end
+
 local function InitList(settingsTable, unitTag)
 	settingsTable.control, settingsTable.animation = {head = nil, tail = nil}, {head = nil, tail = nil}
 
@@ -438,8 +469,10 @@ local function InitList(settingsTable, unitTag)
 			if settingsTable.type == "Bar" then
 				newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
 				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
+				InitBar(settingsTable, unitTag..i, newControl, newAnimation)
 			elseif settingsTable.type == "Compact" then
 				newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
+				InitCompact(settingsTable, unitTag..i, newControl)
 			end
 
 			local newControlNode = {next = nil, prev = settingsTable.control.tail, value = {control = newControl, key = newControlKey, unitTag = unitTag..i}}
@@ -463,33 +496,13 @@ local function InitList(settingsTable, unitTag)
 		end
 	end
 
-	if settingsTable.type == "Bar" then 
-		local current_control = settingsTable.control.head
-		local current_animation = settingsTable.animation.head
-		while current_control and current_animation do
-			InitBar(settingsTable, current_control.value.unitTag, current_control.value.control, current_animation.value.animation)
-			if current_control.prev then
-				current_control.value.control:ClearAnchors()
-				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-			end
-			current_control = current_control.next
-			current_animation = current_animation.next
-		end
-	elseif settingsTable.type == "Compact" then
-		local current_control = settingsTable.control.head
-		while current_control  do
-			InitCompact(settingsTable, current_control.value.unitTag, current_control.value.control)
-			if current_control.prev then
-				current_control.value.control:ClearAnchors()
-				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
-			end
-			current_control = current_control.next
-		end
-	end
+	UpdateListAnchors(settingsTable)
 end
 
 -- number of controls, control unit tag targets, anchors, etc.
 local function updateList(settingsTable, unitTag)
+	local shouldUpdateAnchors = false
+
 	--Step 1: Removed linked list elements if the unittag's entity no longer exists.
 	local currentControlNode = settingsTable.control.head
 	local currentAnimationNode = nil
@@ -498,22 +511,7 @@ local function updateList(settingsTable, unitTag)
 	end
 	while currentControlNode do
 		if not DoesUnitExist(currentControlNode.value.unitTag) or (string.find(currentControlNode.value.unitTag, "boss") and IsUnitDead(currentControlNode.value.unitTag)) then
-			--update anchors
-			if currentControlNode.next and currentControlNode.next.value.control then
-				if currentControlNode.prev and currentControlNode.prev.value.control then
-					currentControlNode.next.value.control:ClearAnchors()
-					if currentAnimationNode then
-						currentControlNode.next.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-					else
-						currentControlNode.next.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
-					end
-					
-				else
-					--Position new head
-					currentControlNode.next.value.control:ClearAnchors()
-					currentControlNode.next.value.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-				end
-			end
+			shouldUpdateAnchors = true
 
 			--free objects
 			if currentAnimationNode then
@@ -569,6 +567,7 @@ local function updateList(settingsTable, unitTag)
 	--Step 2a: If the linked lists are empty, rebuild them.
 	if not settingsTable.control.head then
 		InitList(settingsTable, unitTag)
+		shouldUpdateAnchors = false
 	else
 		-- Step 2b: Else, Insert unaccounted for unitIDs into sorted positions within the linked list
 		local unusedTags = {}
@@ -597,6 +596,7 @@ local function updateList(settingsTable, unitTag)
 				if currentTagIndex and k < currentTagIndex then
 					-- We've passed over the desired index. insert behind
 					unusedTags[k] = nil
+					shouldUpdateAnchors = true
 					
 					--object creation
 					local newControl, newControlKey 
@@ -638,6 +638,8 @@ local function updateList(settingsTable, unitTag)
 		--insert after tail
 		-- we know that the list isn't empty at this point.
 		for k, v in pairs(unusedTags) do
+			shouldUpdateAnchors = true
+
 			--object creation
 			local newControl, newControlKey, newAnimation, newAnimationKey
 			if settingsTable.type == "Bar" then
@@ -660,29 +662,10 @@ local function updateList(settingsTable, unitTag)
 			settingsTable.control.tail = newControlNode
 
 		end
+	end
 
-		-- Doing all of this case's anchor updates at the end here for simplicity's sake.
-		currentControlNode = settingsTable.control.head
-		currentControlNode.value.control:ClearAnchors()
-		currentControlNode.value.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-		currentControlNode = currentControlNode.next
-		if settingsTable.type == "Bar" then	
-			while currentControlNode do
-				if currentControlNode.prev.value.control then
-					currentControlNode.value.control:ClearAnchors()
-					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-				end
-				currentControlNode = currentControlNode.next
-			end
-		elseif settingsTable.type == "Compact" then
-			while currentControlNode do
-				if currentControlNode.prev.value.control then
-					currentControlNode.value.control:ClearAnchors()
-					currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
-				end
-				currentControlNode = currentControlNode.next
-			end
-		end
+	if shouldUpdateAnchors then
+		UpdateListAnchors(settingsTable)
 	end
 end
 
@@ -693,10 +676,6 @@ function UniversalTracker.refreshList(settingsTable, unitTag)
 		local current_animation = settingsTable.animation.head
 		while current_control and current_control.value.control and current_animation and current_animation.value.animation do
 			InitBar(settingsTable, current_control.value.unitTag, current_control.value.control, current_animation.value.animation)
-			if current_control.prev then
-				current_control.value.control:ClearAnchors()
-				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-			end
 			current_control = current_control.next
 			current_animation = current_animation.next
 		end
@@ -704,34 +683,32 @@ function UniversalTracker.refreshList(settingsTable, unitTag)
 		local current_control = settingsTable.control.head
 		while current_control and current_control.value.control do
 			InitCompact(settingsTable, current_control.value.unitTag, current_control.value.control)
-			if current_control.prev then
-				current_control.value.control:ClearAnchors()
-				current_control.value.control:SetAnchor(TOPLEFT, current_control.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
-			end
 			current_control = current_control.next
 		end
 	end
 
 	--register events.
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
-	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
+	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED)
+	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED)
+	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
+	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
+	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
+
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
+	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 	if unitTag == "boss" then
-		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED)
-		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED)
-		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED, function() updateList(settingsTable, unitTag) end)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED, function() updateList(settingsTable, unitTag) end)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED, function() updateList(settingsTable, unitTag) end)
 		EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 		EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED, REGISTER_FILTER_UNIT_TAG_PREFIX, unitTag)
 	elseif unitTag == "group" then
-	elseif unitTag == "group" then
-		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
-		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
 	end
+
+	UpdateListAnchors(settingsTable)
 end
 
 
