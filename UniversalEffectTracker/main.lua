@@ -1,6 +1,29 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
 
+--[[ 
+	To-do List
+		- Visual Setings:
+			- Lists:
+				- 1-3 Columns
+				- Customize spacing inbetween list elements
+				- Horizontal vs Vertical
+				- Create an anchor helper function.
+			- Bars:
+				- Custom start/end colors
+				- Width/Height
+				- Toggle Texture
+		- Ability ID List:
+			- Fix removal of ability IDs
+		- Position:
+			- LibCombatAlerts repositioning of UI elements.
+		- Setups:
+			- A setup can contain any number of trackers.
+			- Loading a setup will enable the relevant trackers and disable all irrelevant ones.
+			- LibRadialMenu integration.
+		- Tracker Types:
+			- Add a textureless, one-line control.
+]]
 UniversalTracker.defaults = {
 	trackerList = {
 

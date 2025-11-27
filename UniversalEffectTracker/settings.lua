@@ -218,6 +218,23 @@ local function copyTracker(source, nullifyControls)
 	return dest
 end
 
+local function getNextAvailableIndex(charSettings)
+	local index
+	if not charSettings then
+		-- If index 2 is removed from 1, 2, 3, 4, 5... we will want to recover and maintain an order for table.remove by inserting the next tracker at index 2
+		index = 1
+		while UniversalTracker.savedVariables.trackerList[index] do
+			index = index + 1
+		end
+	else
+		index = 1
+		while UniversalTracker.characterSavedVariables.trackerList[index] do
+			index = index + 1
+		end
+	end
+	return index
+end
+
 function UniversalTracker.InitSettings()
 	settings = LibHarvensAddonSettings:AddAddon("Universal Effect Tracker")
 
@@ -538,19 +555,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "COPY",
 		tooltip = "Creates a copy of the current tracker and saves it to your account's trackers.",
 		clickHandler = function(control)
-			local index
-			if not isCharacterSettings then
-				-- If index 2 is removed from 1, 2, 3... we will want to recover and maintain an order for table.remove
-				index = 1
-				while UniversalTracker.savedVariables.trackerList[index] do
-					index = index + 1
-				end
-			else
-				index = 1
-				while UniversalTracker.characterSavedVariables.trackerList[index] do
-					index = index + 1
-				end
-			end
+			local index = getNextAvailableIndex(isCharacterSettings)
 			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
 
 			--Error checking
@@ -590,19 +595,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "COPY",
 		tooltip = "Creates a copy of the current tracker and saves it to your account's trackers.",
 		clickHandler = function(control)
-			local index
-			if not isCharacterSettings then
-				-- If index 2 is removed from 1, 2, 3... we will want to recover and maintain an order for table.remove
-				index = 1
-				while UniversalTracker.savedVariables.trackerList[index] do
-					index = index + 1
-				end
-			else
-				index = 1
-				while UniversalTracker.characterSavedVariables.trackerList[index] do
-					index = index + 1
-				end
-			end
+			local index = getNextAvailableIndex(isCharacterSettings)
 			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
 
 			--Error checking
@@ -1350,17 +1343,8 @@ function UniversalTracker.InitSettings()
 			local index
 			if editIndex >= 0 then
 				index = editIndex
-			elseif not isCharacterSettings then
-				-- If index 2 is removed from 1, 2, 3... we will want to recover and maintain an order for table.remove
-				index = 1
-				while UniversalTracker.savedVariables.trackerList[index] do
-					index = index + 1
-				end
 			else
-				index = 1
-				while UniversalTracker.characterSavedVariables.trackerList[index] do
-					index = index + 1
-				end
+				index = getNextAvailableIndex(isCharacterSettings)
 			end
 			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
 
@@ -1483,12 +1467,12 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies an off balance preset into the target save location.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.offBalance)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.offBalance)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
@@ -1507,12 +1491,12 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a stagger preset into the target save location.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.stagger)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.stagger)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
@@ -1531,12 +1515,11 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a relentless focus preset into the target save location.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.relentlessFocus)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.relentlessFocus)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
@@ -1555,12 +1538,12 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a Merciless Resolve preset into the target save location.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mercilessResolve)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mercilessResolve)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
@@ -1579,12 +1562,11 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies an alkosh preset into the target save location.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.alkosh)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.alkosh)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
@@ -1603,12 +1585,11 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a martial knowledge preset into the target save location.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mk)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mk)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
@@ -1621,25 +1602,94 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
+	local ecShockPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "EC (Shock) Preset",
+		buttonText = "LOAD",
+		tooltip = "Copies a shock weakness knowledge preset into the target save location.",
+		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+			if not isCharacterSettings then
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecShock)
+				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
+			else
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecShock)
+				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded Shock Weakness preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local ecFlamePreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "EC (Flame) Preset",
+		buttonText = "LOAD",
+		tooltip = "Copies a flame weakness knowledge preset into the target save location.",
+		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+			if not isCharacterSettings then
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecFire)
+				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
+			else
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecFire)
+				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded Fire Weakness preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	local ecIcePreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "EC (Frost) Preset",
+		buttonText = "LOAD",
+		tooltip = "Copies a frost weakness knowledge preset into the target save location.",
+		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+			if not isCharacterSettings then
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecIce)
+				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
+			else
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecIce)
+				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded Frost Weakness preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
 	local synergyPreset = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "Resource Synergy",
 		buttonText = "LOAD",
 		tooltip = "This tracker will show the cooldown until you can take another combustion / shard synergy.",
 		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+
 			if not isCharacterSettings then
-				local index = #UniversalTracker.savedVariables.trackerList + 1
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.synergyCooldown)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				local index = #UniversalTracker.characterSavedVariables.trackerList + 1
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.synergyCooldown)
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
 			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
 			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded martial Knowledge preset.")
+			messageParams:SetText("Loaded resource synergy cooldown preset.")
 			messageParams:SetLifespanMS(1500)
 			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
 		end
@@ -1659,7 +1709,7 @@ function UniversalTracker.InitSettings()
 														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, cancelButton, saveButton}
 	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, 
-									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, synergyPreset,
+									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
 									navLabel, returnToMainMenuButton}
 
 	settings:AddSettings(settingPages.mainMenu)
