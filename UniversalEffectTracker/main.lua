@@ -730,18 +730,17 @@ function UniversalTracker.freeLists(settingsTable)
 
 	if settingsTable.control.tail and settingsTable.control.tail.value.control then
 		local curNode = settingsTable.control.tail
-		if settingsTable.type == "Bar" then
+		if string.find(curNode.value.control:GetName(), "Bar") then
 			while curNode do
 				UniversalTracker.barPool:ReleaseObject(curNode.value.key)
 				curNode = curNode.prev
 			end
-		elseif settingsTable.type == "Compact" then
+		elseif string.find(curNode.value.control:GetName(), "Compact") then
 			while curNode do
 				UniversalTracker.compactPool:ReleaseObject(curNode.value.key)
 				curNode = curNode.prev
 			end
 		end
-		
 	end
 
 	settingsTable.control = { head = nil, tail = nil}
@@ -814,6 +813,10 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 		if settingsTable.control.head and settingsTable.control.head.value.control then
 			--Is the initialized list of appropriate type?
 			if not string.find(settingsTable.control.head.value.control:GetName(), settingsTable.type) then
+				UniversalTracker.freeLists(settingsTable)
+				InitList(settingsTable, unitTag)
+			elseif not string.find(settingsTable.control.head.value.unitTag, unitTag) then
+				-- Is the initialized list of appropriate target type?
 				UniversalTracker.freeLists(settingsTable)
 				InitList(settingsTable, unitTag)
 			else

@@ -676,11 +676,6 @@ function UniversalTracker.InitSettings()
 					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
 				end
 			end
-			if newTracker.control.object then 
-				UniversalTracker.InitSingleDisplay(newTracker)
-			elseif newTracker.control.head and newTracker.control.head.value.control then
-				UniversalTracker.InitSingleDisplay(newTracker)
-			end
 		end,
 		default = 1,
 	}
@@ -698,12 +693,6 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.targetType end,
 		setFunction = function(control, itemName, itemData) 
 			newTracker.targetType = itemName
-				
-			if newTracker.control.object then 
-				UniversalTracker.InitSingleDisplay(newTracker)
-			elseif newTracker.control.head and newTracker.control.head.value.control then
-				UniversalTracker.InitSingleDisplay(newTracker)
-			end
 		end,
 		default = 1
 	}
