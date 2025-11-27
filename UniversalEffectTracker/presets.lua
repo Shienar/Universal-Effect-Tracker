@@ -14,6 +14,11 @@ UniversalTracker.presets = {
         name = "Off Balance Preset",
         type = "Bar",
         targetType = "Reticle Target",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -65,27 +70,27 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "39077",
-            [1] = "45902",
-            [2] = "2727",
-            [3] = "120014",
-            [4] = "23808",
-            [5] = "20806",
-            [6] = "34117",
-            [7] = "25256",
-            [8] = "34733",
-            [9] = "34737",
-            [10] = "130129",
-            [11] = "130139",
-            [12] = "130145",
-            [13] = "125750",
-            [14] = "131562",
-            [15] = "62968",
-            [16] = "62988",
-            [17] = "137257",
-            [18] = "45834",
-            [19] = "137312",
-            [20] = "134599",
+            [1] = "39077",
+            [2] = "45902",
+            [3] = "2727",
+            [4] = "120014",
+            [5] = "23808",
+            [6] = "20806",
+            [7] = "34117",
+            [8] = "25256",
+            [9] = "34733",
+            [10] = "34737",
+            [11] = "130129",
+            [12] = "130139",
+            [13] = "130145",
+            [14] = "125750",
+            [15] = "131562",
+            [16] = "62968",
+            [17] = "62988",
+            [18] = "137257",
+            [19] = "45834",
+            [20] = "137312",
+            [21] = "134599",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [39077] = true,
@@ -129,6 +134,11 @@ UniversalTracker.presets = {
         name = "Stagger Preset",
         type = "Compact",
         targetType = "Player",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -180,8 +190,8 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "134336", -- stagger (target)
-            [1] = "31816", -- stone giant (self)
+            [1] = "134336", -- stagger (target)
+            [2] = "31816", -- stone giant (self)
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [134336] = true,
@@ -207,6 +217,11 @@ UniversalTracker.presets = {
         name = "Relentless Focus Preset",
         type = "Compact",
         targetType = "Player",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -258,7 +273,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "122587",
+            [1] = "122587",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [122587] = true,
@@ -282,6 +297,11 @@ UniversalTracker.presets = {
         name = "Merciless Resolve Preset",
         type = "Compact",
         targetType = "Player",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -333,7 +353,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "122586",
+            [1] = "122586",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [122586] = true,
@@ -357,6 +377,11 @@ UniversalTracker.presets = {
         name = "Alkosh Preset",
         type = "Bar",
         targetType = "Reticle Target",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -408,8 +433,8 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "76667",
-            [1] = "75753",
+            [1] = "76667",
+            [2] = "75753",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [76667] = true,
@@ -434,6 +459,11 @@ UniversalTracker.presets = {
         name = "Martial Knowledge Preset",
         type = "Compact",
         targetType = "Reticle Target",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -485,7 +515,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "127070",
+            [1] = "127070",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [127070] = true,
@@ -509,6 +539,11 @@ UniversalTracker.presets = {
         name = "EC (Shock) Preset",
         type = "Compact",
         targetType = "Reticle Target",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -560,7 +595,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "142653",
+            [1] = "142653",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [142653] = true,
@@ -584,6 +619,11 @@ UniversalTracker.presets = {
         name = "EC (Fire) Preset",
         type = "Compact",
         targetType = "Reticle Target",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -635,7 +675,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "142610",
+            [1] = "142610",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [142610] = true,
@@ -659,6 +699,11 @@ UniversalTracker.presets = {
         name = "EC (Ice) Preset",
         type = "Compact",
         targetType = "Reticle Target",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -710,7 +755,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "142652",
+            [1] = "142652",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [142652] = true,
@@ -734,6 +779,11 @@ UniversalTracker.presets = {
         name = "Resource Synergy Cooldown Preset",
         type = "Bar",
         targetType = "Player",
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
         textSettings = {
             duration = {
                 color = {
@@ -785,7 +835,7 @@ UniversalTracker.presets = {
             },
         },
         abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
-            [0] = "48052",
+            [1] = "48052",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [48052] = true,

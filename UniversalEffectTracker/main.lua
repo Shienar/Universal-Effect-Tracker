@@ -3,18 +3,7 @@ UniversalTracker.name = "UniversalEffectTracker"
 
 --[[ 
 	To-do List
-		- Visual Setings:
-			- Lists:
-				- 1-3 Columns
-				- Customize spacing inbetween list elements
-				- Horizontal vs Vertical
-				- Create an anchor helper function.
-			- Bars:
-				- Custom start/end colors
-				- Width/Height
-				- Toggle Texture
-		- Ability ID List:
-			- Fix removal of ability IDs
+		- Fix controls not getting cleaned up (unregister?)
 		- Position:
 			- LibCombatAlerts repositioning of UI elements.
 		- Setups:
@@ -67,7 +56,7 @@ local function InitCompact(settingsTable, unitTag, control)
 	unitNameControl:SetText(GetUnitName(unitTag))
 
 	if settingsTable.overrideTexturePath == "" then
-		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 	else
 		textureControl:SetTexture(settingsTable.overrideTexture)
 	end
@@ -92,7 +81,7 @@ local function InitCompact(settingsTable, unitTag, control)
 							--Effect Expired
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 							else
 								textureControl:SetTexture(settingsTable.overrideTexture)
 							end
@@ -134,7 +123,7 @@ local function InitCompact(settingsTable, unitTag, control)
 									--Effect Expired
 									EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 									if settingsTable.overrideTexturePath == "" then
-										textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+										textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 									else
 										textureControl:SetTexture(settingsTable.overrideTexture)
 									end
@@ -156,7 +145,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				--target doesn't have an effect.
 				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 				else
 					textureControl:SetTexture(settingsTable.overrideTexture)
 				end
@@ -191,7 +180,7 @@ local function InitCompact(settingsTable, unitTag, control)
 							--Effect Expired
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 							else
 								textureControl:SetTexture(settingsTable.overrideTexture)
 							end
@@ -215,7 +204,7 @@ local function InitCompact(settingsTable, unitTag, control)
 
 					EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 					if settingsTable.overrideTexturePath == "" then
-						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 					else
 						textureControl:SetTexture(settingsTable.overrideTexture)
 					end
@@ -252,7 +241,7 @@ local function InitCompact(settingsTable, unitTag, control)
 						--Effect Expired
 						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 						if settingsTable.overrideTexturePath == "" then
-							textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+							textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 						else
 							textureControl:SetTexture(settingsTable.overrideTexture)
 						end
@@ -268,7 +257,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				end)
 			elseif changeType == EFFECT_RESULT_FADED and IsAbilityPermanent(abilityID) then
 				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 				else
 					textureControl:SetTexture(settingsTable.overrideTexture)
 				end
@@ -308,7 +297,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	abilityNameControl:SetScale(settingsTable.textSettings.abilityLabel.textScale)
 	abilityNameControl:ClearAnchors()
 	abilityNameControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.abilityLabel.x, settingsTable.textSettings.abilityLabel.y)
-	abilityNameControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
+	abilityNameControl:SetText(GetAbilityName(settingsTable.abilityIDs[1]))
 
 	unitNameControl:SetHidden(settingsTable.textSettings.unitLabel.hidden)
 	unitNameControl:SetColor(settingsTable.textSettings.unitLabel.color.r, settingsTable.textSettings.unitLabel.color.g, settingsTable.textSettings.unitLabel.color.b, settingsTable.textSettings.unitLabel.color.a)
@@ -323,7 +312,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 
 	if settingsTable.overrideTexturePath == "" then
-		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 	else
 		textureControl:SetTexture(settingsTable.overrideTexture)
 	end
@@ -372,11 +361,11 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 				--New target doesn't have the effect.
 				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[0]))
+					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 				else
 					textureControl:SetTexture(settingsTable.overrideTexture)
 				end
-				abilityNameControl:SetText(GetAbilityName(settingsTable.abilityIDs[0]))
+				abilityNameControl:SetText(GetAbilityName(settingsTable.abilityIDs[1]))
 				unitNameControl:SetText(GetUnitName(unitTag))
 				animation:PlayInstantlyToEnd()
 			end
@@ -436,25 +425,59 @@ local function UpdateListAnchors(settingsTable)
 
 	if not (currentControlNode and currentControlNode.value.control) then return end
 
-	currentControlNode.value.control:ClearAnchors()
-	currentControlNode.value.control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-	currentControlNode = currentControlNode.next
-	if settingsTable.type == "Bar" then	
-		while currentControlNode do
-			if currentControlNode.prev.value.control then
-				currentControlNode.value.control:ClearAnchors()
-				currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 25 * settingsTable.scale)
-			end
-			currentControlNode = currentControlNode.next
+	local columns = {
+		[0] = {},
+		[1] = {},
+		[2] = {}
+	}
+
+	--populate columns with lists of controls.
+	local nextColumnIndex = 0
+	while currentControlNode do
+		if currentControlNode.value.control then
+			columns[nextColumnIndex][#columns[nextColumnIndex] + 1] = currentControlNode.value.control
 		end
+		currentControlNode = currentControlNode.next
+		nextColumnIndex = (nextColumnIndex + 1)%settingsTable.listSettings.columns
+	end
+
+
+	local horizontalOffset = settingsTable.listSettings.horizontalOffsetScale * settingsTable.scale
+	local verticalOffset = settingsTable.listSettings.verticalOffsetScale * settingsTable.scale
+	if settingsTable.type == "Bar" then
+		horizontalOffset = horizontalOffset * 15
+		verticalOffset = verticalOffset * 25
 	elseif settingsTable.type == "Compact" then
-		while currentControlNode do
-			if currentControlNode.prev.value.control then
-				currentControlNode.value.control:ClearAnchors()
-				currentControlNode.value.control:SetAnchor(TOPLEFT, currentControlNode.prev.value.control, BOTTOMLEFT, 0, 15 * settingsTable.scale)
-			end
-			currentControlNode = currentControlNode.next
-		end
+		horizontalOffset = horizontalOffset * 10
+		verticalOffset = verticalOffset * 15
+	end
+
+	-- Anchor column heads
+	if columns[0][1] then
+		columns[0][1]:ClearAnchors()
+		columns[0][1]:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
+	end
+	if columns[1][1] then
+		columns[1][1]:ClearAnchors()
+		columns[1][1]:SetAnchor(LEFT, columns[0][1], RIGHT, horizontalOffset, 0)
+	end
+	if columns[2][1] then
+		columns[2][1]:ClearAnchors()
+		columns[2][1]:SetAnchor(LEFT, columns[1][1], RIGHT, horizontalOffset, 0)
+	end
+
+	-- Anchor column children
+	for i = 2, #columns[0] do
+		columns[0][i]:ClearAnchors()
+		columns[0][i]:SetAnchor(TOPLEFT, columns[0][i-1], BOTTOMLEFT, 0, verticalOffset)
+	end
+	for i = 2, #columns[1] do
+		columns[1][i]:ClearAnchors()
+		columns[1][i]:SetAnchor(TOPLEFT, columns[1][i-1], BOTTOMLEFT, 0, verticalOffset)
+	end
+	for i = 2, #columns[2] do
+		columns[2][i]:ClearAnchors()
+		columns[2][i]:SetAnchor(TOPLEFT, columns[0][i-1], BOTTOMLEFT, 0, verticalOffset)
 	end
 end
 
