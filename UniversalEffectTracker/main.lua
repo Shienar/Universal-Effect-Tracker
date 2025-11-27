@@ -3,7 +3,11 @@ UniversalTracker.name = "UniversalEffectTracker"
 
 --[[ 
 	To-do List
-		- Fix controls not getting cleaned up (unregister?)
+		- Player Name vs Character Name on Display
+			- GetUnitDisplayName
+		- zo_strformat
+			- zo_strformat(SI_UNIT_NAME, name)
+			- zo_strformat(SI_ABILITY_NAME, name)
 		- Position:
 			- LibCombatAlerts repositioning of UI elements.
 		- Setups:
@@ -53,7 +57,11 @@ local function InitCompact(settingsTable, unitTag, control)
 	unitNameControl:SetScale(settingsTable.textSettings.unitLabel.textScale)
 	unitNameControl:ClearAnchors()
 	unitNameControl:SetAnchor(BOTTOM, control, TOP, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
-	unitNameControl:SetText(GetUnitName(unitTag))
+	if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+		unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+	else
+		unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+	end
 
 	if settingsTable.overrideTexturePath == "" then
 		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
@@ -103,7 +111,11 @@ local function InitCompact(settingsTable, unitTag, control)
 
 	if unitTag == "reticleover" then
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
-			if GetUnitName(unitTag) ~= "" then unitNameControl:SetText(GetUnitName(unitTag)) end
+			if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+			elseif GetUnitName(unitTag) ~= "" then
+				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+			end
 			if DoesUnitExist(unitTag) then
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, s, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
@@ -297,14 +309,18 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	abilityNameControl:SetScale(settingsTable.textSettings.abilityLabel.textScale)
 	abilityNameControl:ClearAnchors()
 	abilityNameControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.abilityLabel.x, settingsTable.textSettings.abilityLabel.y)
-	abilityNameControl:SetText(GetAbilityName(settingsTable.abilityIDs[1]))
+	abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(settingsTable.abilityIDs[1])))
 
 	unitNameControl:SetHidden(settingsTable.textSettings.unitLabel.hidden)
 	unitNameControl:SetColor(settingsTable.textSettings.unitLabel.color.r, settingsTable.textSettings.unitLabel.color.g, settingsTable.textSettings.unitLabel.color.b, settingsTable.textSettings.unitLabel.color.a)
 	unitNameControl:SetScale(settingsTable.textSettings.unitLabel.textScale)
 	unitNameControl:ClearAnchors()
 	unitNameControl:SetAnchor(BOTTOMLEFT, barControl:GetNamedChild("Background"), TOPLEFT, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
-	unitNameControl:SetText(GetUnitName(unitTag))
+	if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+		unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+	else
+		unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+	end
 
 
 	barControl:SetValue(0)
@@ -327,8 +343,12 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				else
 					textureControl:SetTexture(settingsTable.overrideTexture)
 				end
-				abilityNameControl:SetText(GetAbilityName(abilityId))
-				unitNameControl:SetText(GetUnitName(unitTag))
+				abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityId)))
+				if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+				else
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+				end
 				for j = 1, animation:GetNumAnimations() do 
 					animation:GetAnimation(j):SetDuration((endTime - startTime)*1000)
 				end
@@ -349,8 +369,12 @@ local function InitBar(settingsTable, unitTag, control, animation)
 						else
 							textureControl:SetTexture(settingsTable.overrideTexture)
 						end
-						abilityNameControl:SetText(GetAbilityName(abilityId))
-						unitNameControl:SetText(GetUnitName(unitTag))
+						abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityId)))
+						if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+							unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+						else
+							unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+						end
 						for j = 1, animation:GetNumAnimations() do 
 							animation:GetAnimation(j):SetDuration((endTime - startTime)*1000)
 						end
@@ -365,8 +389,12 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				else
 					textureControl:SetTexture(settingsTable.overrideTexture)
 				end
-				abilityNameControl:SetText(GetAbilityName(settingsTable.abilityIDs[1]))
-				unitNameControl:SetText(GetUnitName(unitTag))
+				abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(settingsTable.abilityIDs[1])))
+				if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+				else
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+				end
 				animation:PlayInstantlyToEnd()
 			end
 		end)
@@ -386,8 +414,12 @@ local function InitBar(settingsTable, unitTag, control, animation)
 					else
 						textureControl:SetTexture(settingsTable.overrideTexture)
 					end
-					abilityNameControl:SetText(GetAbilityName(abilityID))
-					unitNameControl:SetText(GetUnitName(unitTag))
+					abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityID)))
+					if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+						unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+					else
+						unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+					end
 					for i = 1, animation:GetNumAnimations() do 
 						animation:GetAnimation(i):SetDuration(hitValue)
 					end
@@ -404,8 +436,12 @@ local function InitBar(settingsTable, unitTag, control, animation)
 			else
 				textureControl:SetTexture(settingsTable.overrideTexture)
 			end
-			abilityNameControl:SetText(GetAbilityName(abilityID))
-			unitNameControl:SetText(GetUnitName(unitTag))
+			abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityID)))
+			if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+			else
+				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+			end
 			for i = 1, animation:GetNumAnimations() do 
 				animation:GetAnimation(i):SetDuration((endTime - startTime)*1000)
 			end

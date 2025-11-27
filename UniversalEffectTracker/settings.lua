@@ -81,6 +81,7 @@ local newTracker = {
 			x = 0,
 			y = 0,
 			hidden = false,
+			accountName = true,
 		},
 	},
 	abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
@@ -266,7 +267,7 @@ function UniversalTracker.InitSettings()
 	local columnCount, horizontalSpacing, verticalSpacing = nil, nil, nil
 	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
 	local hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset  = nil, nil, nil, nil, nil
-	local hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset  = nil, nil, nil, nil, nil
+	local hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset  = nil, nil, nil, nil, nil, nil
 
 	---------------------------------------
 	---				Labels				---
@@ -525,6 +526,7 @@ function UniversalTracker.InitSettings()
 						x = 0,
 						y = 0,
 						hidden = false,
+						accountName = true,
 					},
 				},
 				abilityIDs = { --abilityIDs are values
@@ -1341,6 +1343,32 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.unitLabel.hidden
 	}
 
+	preferPlayerName = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Account Name",
+		tooltip = "For players, choose whether the tracker displays their character name or account name.",
+		getFunction = function() return newTracker.textSettings.unitLabel.accountName end,
+		setFunction = function(value) 
+			newTracker.textSettings.unitLabel.accountName = value 
+			if newTracker.control.object then
+				if DoesUnitExist(newTracker.unitTag) then
+					local child = newTracker.control.object:GetNamedChild("UnitName")
+					if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName") end
+					
+					if value then
+						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(newTracker.unitTag)))
+					else
+						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(newTracker.unitTag)))
+					end
+				end
+			elseif newTracker.control.head and newTracker.control.head.value.control then
+				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control.head.value.unitTag, "%d+", ""))
+			end
+			temporarilyShowControl(editIndex)
+		end,
+		default = newTracker.textSettings.unitLabel.accountName
+	}
+
 	unitLabelFontColor = {
 		type = LibHarvensAddonSettings.ST_COLOR,
 		label = "Unit Label Text Color",
@@ -1581,7 +1609,7 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			for x = 1, 12 do
 				if DoesUnitExist("boss"..x) then
-					UniversalTracker.chat:Print(zo_strformat(GetUnitName("boss"..x)))
+					UniversalTracker.chat:Print(zo_strformat(SI_UNIT_NAME, GetUnitName("boss"..x)))
 					for i = 1, GetNumBuffs("boss"..x) do
 						local buffName, _, _, _, _, iconFilename, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo("boss"..x, i) 
 						UniversalTracker.chat:Print(". "..buffName.." (ID:"..abilityId..") ".."Texture="..iconFilename)
@@ -1841,7 +1869,7 @@ function UniversalTracker.InitSettings()
 									positionLabel, newScale, newXOffset, newYOffset,
 									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
-														unitNameLabel, hideunitLabel, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
+														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, cancelButton, saveButton}
 	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, 
 									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
