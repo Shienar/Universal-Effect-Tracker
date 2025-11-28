@@ -165,88 +165,21 @@ local function temporarilyShowControl(index)
 	end
 end
 
-local function copySetup(source)
-	local dest = {}
-
-	dest.name = source.name
-	dest.id = source.id
-	for k, v in pairs(source.trackerIDList) do
-		dest.trackerIDList[k] = v
-	end
-
-	return dest
-end
-
 local function copyTracker(source, nullifyControls)
 	local dest = {}
-
-	-- Removing usage of ZO_DeepTableCopy in fear that it is the reason that this addon is corrupting save files.
-
-	dest.id = source.id
-	dest.name = source.name
-	dest.type = source.type
-	dest.targetType = source.targetType
-	dest.listSettings = {}
-	dest.listSettings.columns = source.listSettings.columns
-	dest.listSettings.horizontalOffsetScale = source.listSettings.horizontalOffsetScale
-	dest.listSettings.verticalOffsetScale = source.listSettings.verticalOffsetScale
-	dest.textSettings = {}
-	dest.textSettings.duration = {}
-	dest.textSettings.duration.color.r = source.textSettings.duration.color.r
-	dest.textSettings.duration.color.g = source.textSettings.duration.color.g
-	dest.textSettings.duration.color.b = source.textSettings.duration.color.b
-	dest.textSettings.duration.color.a = source.textSettings.duration.color.a
-	dest.textSettings.duration.textScale = source.textSettings.duration.textScale
-	dest.textSettings.duration.x = source.textSettings.duration.x
-	dest.textSettings.duration.y = source.textSettings.duration.y
-	dest.textSettings.duration.hidden = source.textSettings.duration.hidden
-	dest.textSettings.stacks = {}
-	dest.textSettings.stacks.color.r = source.textSettings.stacks.color.r
-	dest.textSettings.stacks.color.g = source.textSettings.stacks.color.g
-	dest.textSettings.stacks.color.b = source.textSettings.stacks.color.b
-	dest.textSettings.stacks.color.a = source.textSettings.stacks.color.a
-	dest.textSettings.stacks.textScale = source.textSettings.stacks.textScale
-	dest.textSettings.stacks.x = source.textSettings.stacks.x
-	dest.textSettings.stacks.y = source.textSettings.stacks.y
-	dest.textSettings.stacks.hidden = source.textSettings.stacks.hidden
-	dest.textSettings.abilityLabel = {}
-	dest.textSettings.abilityLabel.color.r = source.textSettings.abilityLabel.color.r
-	dest.textSettings.abilityLabel.color.g = source.textSettings.abilityLabel.color.g
-	dest.textSettings.abilityLabel.color.b = source.textSettings.abilityLabel.color.b
-	dest.textSettings.abilityLabel.color.a = source.textSettings.abilityLabel.color.a
-	dest.textSettings.abilityLabel.textScale = source.textSettings.abilityLabel.textScale
-	dest.textSettings.abilityLabel.x = source.textSettings.abilityLabel.x
-	dest.textSettings.abilityLabel.y = source.textSettings.abilityLabel.y
-	dest.textSettings.abilityLabel.hidden = source.textSettings.abilityLabel.hidden
-	dest.textSettings.unitLabel = {}
-	dest.textSettings.unitLabel.color.r = source.textSettings.unitLabel.color.r
-	dest.textSettings.unitLabel.color.g = source.textSettings.unitLabel.color.g
-	dest.textSettings.unitLabel.color.b = source.textSettings.unitLabel.color.b
-	dest.textSettings.unitLabel.color.a = source.textSettings.unitLabel.color.a
-	dest.textSettings.unitLabel.textScale = source.textSettings.unitLabel.textScale
-	dest.textSettings.unitLabel.x = source.textSettings.unitLabel.x
-	dest.textSettings.unitLabel.y = source.textSettings.unitLabel.y
-	dest.textSettings.unitLabel.hidden = source.textSettings.unitLabel.hidden
-	dest.textSettings.unitLabel.accountName = source.textSettings.unitLabel.accountName
-	for k, v in pairs(source.abilityIDs) do
-		dest.abilityIDs[k] = v
-	end
-	for k, v in pairs(source.hashedAbilityIDs) do
-		dest.hashedAbilityIDs[k] = v
-	end
-	dest.overrideTexturePath = source.overrideTexturePath
-	dest.x = source.x
-	dest.y = source.y
-	dest.scale = source.scale
-	dest.hidden = source.hidden
-
 	if source.control.head then
-		if nullifyControls then
-			dest.control.head = nil
-			dest.control.tail = nil
-			dest.animation.head = nil
-			dest.animation.tail = nil
-		else
+		-- Exclude the 2-directional linked list from the deep copy.
+		-- The deep copy function will never stop running otherwise.
+		local tempControlList = source.control
+		local tempAnimationList = source.animation
+		source.control = nil
+		source.animation = nil
+		ZO_DeepTableCopy(source, dest)
+		source.control = tempControlList
+		source.animation = tempAnimationList
+
+		if not nullifyControls then
+			-- Copy over the linked list ourselves
 			local cur_source = source.control.head
 			dest.control = {
 				head = {next = cur_source.next, prev = cur_source.prev, 
@@ -265,7 +198,7 @@ local function copyTracker(source, nullifyControls)
 				end
 			end
 
-			if source.animation and source.animation.head then
+			if source.	animation and source.animation.head then
 				cur_source = source.animation.head
 				dest.animation = {
 					head = {next = cur_source.next, prev = cur_source.prev, 
@@ -284,18 +217,15 @@ local function copyTracker(source, nullifyControls)
 					end
 				end
 			end
+		else
+			dest.control = {head = nil, tail = nil}
+			dest.animation = {head = nil, tail = nil}
 		end
 	else
+		ZO_DeepTableCopy(source, dest)
 		if nullifyControls then
-			dest.control.object = nil
-			dest.control.key = nil
-			dest.animation.object = nil
-			dest.animation.key = nil
-		else
-			dest.control.object = source.control.object
-			dest.control.key = source.control.key
-			dest.animation.object = source.animation.object
-			dest.animation.key = source.animation.key
+			dest.control = { object = nil, key = nil,}
+			dest.animation = { object = nil, key = nil,}
 		end
 	end
 
@@ -306,7 +236,6 @@ local function copyTracker(source, nullifyControls)
 			index = index + 1
 		else
 			table.remove(dest.abilityIDs, index)
-			dest.hashedAbilityIDs[dest.abilityIDs[index]] = nil
 		end
 	end
 
@@ -457,9 +386,10 @@ function UniversalTracker.InitSettings()
 						clickHandler = function(control)
 							editIndex = k
 							isCharacterSettings = false
-							newSetup = copySetup(UniversalTracker.savedVariables.setupList[editIndex])
+							ZO_DeepTableCopy(UniversalTracker.savedVariables.setupList[editIndex], newSetup)
 							loadMenu(settingPages.newSetup, 2)
 
+							
 							--Remove the save destination
 							settings:RemoveSettings(6, 1, false)
 
@@ -521,7 +451,7 @@ function UniversalTracker.InitSettings()
 						clickHandler = function(control)
 							editIndex = k
 							isCharacterSettings = true
-							newSetup = copySetup(UniversalTracker.characterSavedVariables.setupList[editIndex])
+							ZO_DeepTableCopy(UniversalTracker.characterSavedVariables.setupList[editIndex], newSetup)
 							loadMenu(settingPages.newSetup, 2)
 
 							--Remove the save destination
@@ -950,13 +880,13 @@ function UniversalTracker.InitSettings()
 			end
 
 			if isCharacterSettings then
-				UniversalTracker.characterSavedVariables.setupList[index] = copySetup(newSetup)
+				UniversalTracker.characterSavedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
 				if editIndex < 0 then
 					UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 					UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 				end
 			else
-				UniversalTracker.savedVariables.setupList[index] = copySetup(newSetup)
+				UniversalTracker.savedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
 				if editIndex < 0 then
 					UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 					UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
@@ -1039,7 +969,7 @@ function UniversalTracker.InitSettings()
 				return
 			end
 
-			UniversalTracker.savedVariables.setupList[index] = copySetup(newSetup)
+			UniversalTracker.savedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
 			UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 			
@@ -1069,7 +999,7 @@ function UniversalTracker.InitSettings()
 				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
 				return
 			end
-			UniversalTracker.characterSavedVariables.setupList[index] = copySetup(newSetup)
+			UniversalTracker.characterSavedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
 			UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 			
