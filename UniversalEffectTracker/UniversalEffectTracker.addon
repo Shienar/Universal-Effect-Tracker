@@ -1,10 +1,10 @@
 ## Title: UniversalEffectTracker
 ## Author: Shienar
 ## APIVersion: 101048
-## AddOnVersion: 1
-## Version: 1
+## AddOnVersion: 10005
+## Version: 1.0.5
 ## IsLibrary: False
-## ConsoleDependsOn: LibHarvensAddonSettings>=20004 LibChatMessage
+## ConsoleDependsOn: LibHarvensAddonSettings>=20004 LibChatMessage LibRadialMenu
 ## SavedVariables: UniversalTrackerSavedVariables
 
 templates.xml

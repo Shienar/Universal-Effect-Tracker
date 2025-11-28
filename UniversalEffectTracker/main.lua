@@ -3,14 +3,8 @@ UniversalTracker.name = "UniversalEffectTracker"
 
 --[[ 
 	To-do List
-		- Player Name vs Character Name on Display
-			- GetUnitDisplayName
-		- zo_strformat
-			- zo_strformat(SI_UNIT_NAME, name)
-			- zo_strformat(SI_ABILITY_NAME, name)
-		- Position:
-			- LibCombatAlerts repositioning of UI elements.
 		- Setups:
+			- Character or account save destination.
 			- A setup can contain any number of trackers.
 			- Loading a setup will enable the relevant trackers and disable all irrelevant ones.
 			- LibRadialMenu integration.
@@ -18,9 +12,23 @@ UniversalTracker.name = "UniversalEffectTracker"
 			- Add a textureless, one-line control.
 ]]
 UniversalTracker.defaults = {
+	nextID = 0,
+	nextSetupID = 0,
 	trackerList = {
 
-	}
+	},
+	setupList = {
+
+	},
+}
+
+UniversalTracker.defaultsCharacter = {
+	trackerList = {
+
+	},
+	setupList = {
+
+	},
 }
 
 UniversalTracker.unitIDs = {
@@ -835,8 +843,6 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
 			elseif not settingsTable.control.object then
 				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
-				settingsTable.id = UniversalTracker.nextID
-				UniversalTracker.nextID = UniversalTracker.nextID + 1
 			elseif string.find(settingsTable.control.object:GetName(), "Bar") then
 				UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation.key)
 				UniversalTracker.barPool:ReleaseObject(settingsTable.control.key)
@@ -852,8 +858,6 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 			elseif not settingsTable.control.object then
 				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
 				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
-				settingsTable.id = UniversalTracker.nextID
-				UniversalTracker.nextID = UniversalTracker.nextID + 1
 			elseif string.find(settingsTable.control.object:GetName(), "Compact") then
 				UniversalTracker.compactPool:ReleaseObject(settingsTable.control.key)
 				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
@@ -884,8 +888,6 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 		else
 			--initialize current.
 			InitList(settingsTable, unitTag)
-			settingsTable.id = UniversalTracker.nextID
-			UniversalTracker.nextID = UniversalTracker.nextID + 1
 		end
 
 		--register events.
@@ -972,10 +974,9 @@ local function fragmentChange(oldState, newState)
 	end
 end
 
--- TODO pool releases for group/boss bars
 function UniversalTracker.Initialize()
 	UniversalTracker.savedVariables = ZO_SavedVars:NewAccountWide("UniversalTrackerSavedVariables", 1, nil, UniversalTracker.defaults, GetWorldName())
-	UniversalTracker.characterSavedVariables = ZO_SavedVars:NewCharacterIdSettings("UniversalTrackerSavedVariables", 1, nil, UniversalTracker.defaults, GetWorldName())
+	UniversalTracker.characterSavedVariables = ZO_SavedVars:NewCharacterIdSettings("UniversalTrackerSavedVariables", 1, nil, UniversalTracker.defaultsCharacter, GetWorldName())
 
 	UniversalTracker.chat = LibChatMessage("UniversalTracker", "UniversalTracker")
 
@@ -1049,14 +1050,28 @@ function UniversalTracker.Initialize()
 
     UniversalTracker.InitSettings()
 
-	for k, v in pairs (UniversalTracker.savedVariables.trackerList) do
+	for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 		UniversalTracker.savedVariables.trackerList.control = {object = nil, key = nil}
 		UniversalTracker.InitSingleDisplay(v)
 	end
-	for k, v in pairs (UniversalTracker.characterSavedVariables.trackerList) do
+	for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 		UniversalTracker.characterSavedVariables.trackerList.control = {object = nil, key = nil}
 		UniversalTracker.InitSingleDisplay(v)
 	end
+
+	zo_callLater( function()
+	LibRadialMenu:RegisterAddon(UniversalTracker.name, UniversalTracker.name)
+	for k, v in pairs(UniversalTracker.savedVariables.setupList) do
+		if v and v.id and v.name then
+			LibRadialMenu:RegisterEntry(UniversalTracker.name, v.name, tostring(v.id), "EsoUI/Art/Notifications/notificationIcon_duel.dds", function() UniversalTracker.loadSetup(v.id) end, "Load this setup.")
+		end
+	end
+	for k, v in pairs(UniversalTracker.characterSavedVariables.setupList) do
+		if v and v.id and v.name then
+			LibRadialMenu:RegisterEntry(UniversalTracker.name, v.name, tostring(v.id), "EsoUI/Art/Notifications/notificationIcon_duel.dds", function() UniversalTracker.loadSetup(v.id) end, "Load this setup.")
+		end
+	end
+end, 500)
 
 	HUD_FRAGMENT:RegisterCallback("StateChange", fragmentChange)
 
@@ -1065,7 +1080,6 @@ function UniversalTracker.Initialize()
 			UniversalTracker.unitIDs[unitID] = tag
 		end
 	end)
-
 	local function resetIDList() UniversalTracker.unitIDs = {} end
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_GROUP_MEMBER_JOINED, resetIDList)

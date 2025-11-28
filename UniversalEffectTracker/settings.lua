@@ -1,10 +1,10 @@
 UniversalTracker = UniversalTracker or {}
 
-UniversalTracker.nextID = 0
-
 local settings = nil
 local settingPages = {
 	mainMenu = {},
+	setupList = {},
+	newSetup = {},
 	trackedList = {},
 	newTracker = {},
 	utilities = {},
@@ -95,6 +95,14 @@ local newTracker = {
 	y = 0,
 	scale = 1,
 	hidden = false,
+}
+
+local newSetup = {
+	name = "New Setup",
+	id = -1,
+	trackerIDList = {
+
+	}
 }
 
 local function createHashedIDList(settingAbilityIDs)
@@ -234,26 +242,78 @@ local function copyTracker(source, nullifyControls)
 	return dest
 end
 
-local function getNextAvailableIndex(charSettings)
-	local index
-	if not charSettings then
-		-- If index 2 is removed from 1, 2, 3, 4, 5... we will want to recover and maintain an order for table.remove by inserting the next tracker at index 2
-		index = 1
-		while UniversalTracker.savedVariables.trackerList[index] do
-			index = index + 1
+local function getNextAvailableIndex(charSettings, isSetup)
+	local index = 1
+	if isSetup then
+		if not charSettings then
+			while UniversalTracker.savedVariables.setupList[index] do
+				index = index + 1
+			end
+		else
+			while UniversalTracker.characterSavedVariables.setupList[index] do
+				index = index + 1
+			end
 		end
 	else
-		index = 1
-		while UniversalTracker.characterSavedVariables.trackerList[index] do
-			index = index + 1
+		if not charSettings then
+			while UniversalTracker.savedVariables.trackerList[index] do
+				index = index + 1
+			end
+		else
+			while UniversalTracker.characterSavedVariables.trackerList[index] do
+				index = index + 1
+			end
 		end
 	end
 	return index
 end
 
+function UniversalTracker.loadSetup(id)
+	local idList = nil
+	for k, v in pairs(UniversalTracker.savedVariables.setupList) do
+		if v.id == id then
+			idList = v.trackerIDList
+			break
+		end
+	end
+	if not idList then
+		for k, v in pairs(UniversalTracker.characterSavedVariables.setupList) do
+			if v.id == id then
+				idList = v.trackerIDList
+			end
+		end
+	end
+
+	if idList == nil then 
+		UniversalTracker.chat:Print("Could not locate setup with id "..tostring(id))
+		return
+	end
+
+	for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
+		if v and v.name and v.id then
+			v.hidden = not idList[v.id]
+			if v.control and v.control.object then
+				v.control.object:SetHidden(v.hidden)
+			elseif v.control and v.control.head and v.control.head.value.control then
+				UniversalTracker.refreshList(v, string.gsub(v.control.head.value.unitTag, "%d+", ""))
+			end
+		end
+	end
+	for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
+		if v and v.name and v.id then
+			v.hidden = not idList[v.id]
+			if v.control and v.control.object then
+				v.control.object:SetHidden(v.hidden)
+			elseif v.control and v.control.head and v.control.head.value.control then
+				UniversalTracker.refreshList(v, string.gsub(v.control.head.value.unitTag, "%d+", ""))
+			end
+		end
+	end
+
+end
+
 function UniversalTracker.InitSettings()
 	settings = LibHarvensAddonSettings:AddAddon("Universal Effect Tracker")
-
 
 	-----------------------------------------------------------
 	---		Early Declarations for Self/Cross References	---
@@ -262,7 +322,10 @@ function UniversalTracker.InitSettings()
 	local setNewAbilityID = nil
 	local add1AbilityID = nil
 	local deleteTracker = nil
-	local copyToAccount, copyToCharacter = nil, nil
+	local deleteSetup = nil
+	local loadSetup = nil
+	local copyTrackerToAccount, copyTrackerToCharacter = nil, nil
+	local copySetupToAccount, copySetupToCharacter = nil, nil
 	local setNewTrackerSaveType = nil
 	local columnCount, horizontalSpacing, verticalSpacing = nil, nil, nil
 	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
@@ -273,11 +336,17 @@ function UniversalTracker.InitSettings()
 	---				Labels				---
 	---------------------------------------
 
-	local mainMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Main Menu",}
+	local setupLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Setups",}
+	local trackerLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Trackers",}
+	local otherLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Other",}
 	local navLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Navigation",}
 
 	local accountTrackersLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Account Trackers",}
 	local characterTrackersLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Character Trackers",}
+
+	local editSetupLabel = { type = LibHarvensAddonSettings.ST_SECTION, label = "Edit Setup",}
+	local accountSetupsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Account Setups",}
+	local characterSetupsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Character Setups",}
 
 	local newTrackerMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Edit Tracker",}
 	local abilityIDListLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Tracked abilityIDs",}
@@ -297,14 +366,219 @@ function UniversalTracker.InitSettings()
 	---			Navigation Buttons		---
 	---------------------------------------
 
+	local setupListMenuButton = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "SETUP LIST",
+		buttonText = "SETUPS",
+		tooltip = "Load, View, Edit, and delete from your list of setups.\n\
+					A setup is a collection of trackers. Loading a setup enables all trackers in the collection and disables all other trackers.",
+		clickHandler = function(control)
+			loadMenu(settingPages.setupList, 2)
+			currentPageIndex = 2
+
+			for k, v in pairs(UniversalTracker.savedVariables.setupList) do
+				if v and v.name then
+					settings:AddSetting({
+						type = LibHarvensAddonSettings.ST_BUTTON,
+						label = UniversalTracker.savedVariables.setupList[k].name, 
+						buttonText = UniversalTracker.savedVariables.setupList[k].name, 
+						tooltip = "Load or Edit this setup.",
+						clickHandler = function(control)
+							editIndex = k
+							isCharacterSettings = false
+							ZO_DeepTableCopy(UniversalTracker.savedVariables.setupList[editIndex], newSetup)
+							loadMenu(settingPages.newSetup, 2)
+
+							
+							--Remove the save destination
+							settings:RemoveSettings(6, 1, false)
+
+							--Add the trackers to toggle for the setup.
+							for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
+								if v and v.id and v.name then
+									settings:AddSetting({
+										type = LibHarvensAddonSettings.ST_CHECKBOX,
+										label = v.name,
+										tooltip = "Choose whether to include this tracker with the setup.",
+										getFunction = function() if newSetup.trackerIDList[v.id] then return true else return false end end,
+										setFunction = function(value)
+											if value == true then
+												newSetup.trackerIDList[v.id] = true
+											else
+												newSetup.trackerIDList[v.id] = nil
+											end						
+										end,
+										default = false
+									}, 4, false)
+								end
+							end
+
+							for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
+								if v and v.id and v.name then
+									settings:AddSetting({
+										type = LibHarvensAddonSettings.ST_CHECKBOX,
+										label = v.name,
+										tooltip = "Choose whether to include this tracker with the setup.",
+										getFunction = function() if newSetup.trackerIDList[v.id] then return true else return false end end,
+										setFunction = function(value)
+											if value == true then
+												newSetup.trackerIDList[v.id] = true
+											else
+												newSetup.trackerIDList[v.id] = nil
+											end						
+										end,
+										default = false
+									}, #settings.settings - 2, false)
+								end
+							end
+
+							settings:AddSetting(loadSetup, 3, false)
+
+							settings:AddSettings({deleteSetup, copySetupToCharacter, copySetupToAccount}, #settings.settings - 1, false)
+
+						end
+					}, #settings.settings - 2, false)
+				end
+			end
+
+			for k, v in pairs(UniversalTracker.characterSavedVariables.setupList) do
+				if v and v.name then
+					settings:AddSetting({
+						type = LibHarvensAddonSettings.ST_BUTTON,
+						label = UniversalTracker.characterSavedVariables.setupList[k].name, 
+						buttonText = UniversalTracker.characterSavedVariables.setupList[k].name, 
+						tooltip = "Load or Edit this setup.",
+						clickHandler = function(control)
+							editIndex = k
+							isCharacterSettings = true
+							ZO_DeepTableCopy(UniversalTracker.characterSavedVariables.setupList[editIndex], newSetup)
+							loadMenu(settingPages.newSetup, 2)
+
+							--Remove the save destination
+							settings:RemoveSettings(6, 1, false)
+
+							--Add the trackers to toggle for the setup.
+							for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
+								if v and v.id and v.name then
+									settings:AddSetting({
+										type = LibHarvensAddonSettings.ST_CHECKBOX,
+										label = v.name,
+										tooltip = "Choose whether to include this tracker with the setup.",
+										getFunction = function() if newSetup.trackerIDList[v.id] then return true else return false end end,
+										setFunction = function(value)
+											if value == true then
+												newSetup.trackerIDList[v.id] = true
+											else
+												newSetup.trackerIDList[v.id] = nil
+											end						
+										end,
+										default = false
+									}, 4, false)
+								end
+							end
+
+							for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
+								if v and v.id and v.name then
+									settings:AddSetting({
+										type = LibHarvensAddonSettings.ST_CHECKBOX,
+										label = v.name,
+										tooltip = "Choose whether to include this tracker with the setup.",
+										getFunction = function() if newSetup.trackerIDList[v.id] then return true else return false end end,
+										setFunction = function(value)
+											if value == true then
+												newSetup.trackerIDList[v.id] = true
+											else
+												newSetup.trackerIDList[v.id] = nil
+											end						
+										end,
+										default = false
+									}, #settings.settings - 2, false)
+								end
+							end
+
+							settings:AddSetting(loadSetup, 3, false)
+
+							settings:AddSettings({deleteSetup, copySetupToCharacter, copySetupToAccount}, #settings.settings - 1, false)
+
+						end
+					}, #settings.settings - 1, false)
+				end
+			end
+
+			LibHarvensAddonSettings.list:SetSelectedIndexWithoutAnimation(2)
+		end
+	}
+	local addNewSetupButton = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "NEW SETUP",
+		buttonText = "ADD NEW",
+		tooltip = "Create a new setup.\n\
+					A setup is a collection of trackers. Loading a setup enables all trackers in the collection and disables all other trackers.",
+		clickHandler = function(control)
+			--reset local variables
+			newSetup = {
+				name = "New Setup",
+				id = -1,
+				trackerIDList = {
+
+				}
+			}
+
+			loadMenu(settingPages.newSetup, 2)
+			isCharacterSettings = false
+
+			
+			for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
+				if v and v.id and v.name then
+					settings:AddSetting({
+						type = LibHarvensAddonSettings.ST_CHECKBOX,
+						label = v.name,
+						tooltip = "Choose whether to include this tracker with the setup.",
+						getFunction = function() if newSetup.trackerIDList[v.id] then return true else return false end end,
+						setFunction = function(value)
+							if value == true then
+								newSetup.trackerIDList[v.id] = true
+							else
+								newSetup.trackerIDList[v.id] = nil
+							end						
+						end,
+						default = false
+					}, 4, false)
+				end
+			end
+
+			for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
+				if v and v.id and v.name then
+					settings:AddSetting({
+						type = LibHarvensAddonSettings.ST_CHECKBOX,
+						label = v.name,
+						tooltip = "Choose whether to include this tracker with the setup.",
+						getFunction = function() if newSetup.trackerIDList[v.id] then return true else return false end end,
+						setFunction = function(value)
+							if value == true then
+								newSetup.trackerIDList[v.id] = true
+							else
+								newSetup.trackerIDList[v.id] = nil
+							end						
+						end,
+						default = false
+					}, #settings.settings - 3, false)
+				end
+			end
+
+			currentPageIndex = 3
+			editIndex = -1
+		end
+	}
+
 	local trackedListMenuButton = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "TRACKERS",
+		label = "TRACKER LIST",
 		buttonText = "TRACKERS",
 		tooltip = "View, Edit, and delete from your list of tracked effects.",
 		clickHandler = function(control)
 			loadMenu(settingPages.trackedList, 2)
-			currentPageIndex = 2
+			currentPageIndex = 5
 
 			--Account trackers
 			for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
@@ -318,7 +592,6 @@ function UniversalTracker.InitSettings()
 							editIndex = k
 							isCharacterSettings = false
 							newTracker = copyTracker(UniversalTracker.savedVariables.trackerList[editIndex])
-							currentPageIndex = 2 + editIndex
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
@@ -376,7 +649,7 @@ function UniversalTracker.InitSettings()
 							end
 
 							--Add the remove and copy buttons
-							settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
+							settings:AddSettings({deleteTracker, copyTrackerToCharacter, copyTrackerToAccount}, #settings.settings - 1, false)
 
 						end
 					}, #settings.settings - 2, false)
@@ -395,7 +668,6 @@ function UniversalTracker.InitSettings()
 							editIndex = k
 							isCharacterSettings = true
 							newTracker = copyTracker(UniversalTracker.characterSavedVariables.trackerList[editIndex])
-							currentPageIndex = 2 + editIndex
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
@@ -443,7 +715,7 @@ function UniversalTracker.InitSettings()
 							end
 
 							--Add the remove button
-							settings:AddSettings({deleteTracker, copyToCharacter, copyToAccount}, #settings.settings - 1, false)
+							settings:AddSettings({deleteTracker, copyTrackerToCharacter, copyTrackerToAccount}, #settings.settings - 1, false)
 
 						end
 					}, #settings.settings - 1, false)
@@ -455,7 +727,7 @@ function UniversalTracker.InitSettings()
 	}
 	local addNewTrackerButton = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "ADD NEW",
+		label = "NEW TRACKER",
 		buttonText = "ADD NEW",
 		tooltip = "Create a new effect tracker.",
 		clickHandler = function(control)
@@ -546,7 +818,7 @@ function UniversalTracker.InitSettings()
 			settings:AddSetting(setNewTrackerSaveType, #settings.settings - 1, false)
 			isCharacterSettings = false
 
-			currentPageIndex = 3
+			currentPageIndex = 6
 			editIndex = -1
 		end
 	}
@@ -557,7 +829,7 @@ function UniversalTracker.InitSettings()
 		tooltip = "Tools that will help you find the abilityIDs for certain effects.",
 		clickHandler = function(control)
 			loadMenu(settingPages.utilities, 2)
-			currentPageIndex = 4
+			currentPageIndex = 8
 		end
 	}
 	local returnToMainMenuButton = {
@@ -571,10 +843,275 @@ function UniversalTracker.InitSettings()
 	}
 
 	---------------------------------------
-	---			Tracker List			---
+	---				Setups		  		---
 	---------------------------------------
-	--- This also reuses settings from "Add new Tracker"
+
+	local setNewSetupName = {
+		type = LibHarvensAddonSettings.ST_EDIT,
+		label = "Setup Name",
+		tooltip = "Enter your custom name for this tracker\n",
+		getFunction = function() return newSetup.name end,
+		setFunction = function(value)
+			newSetup.name = value
+		end,
+		default = "New Setup",
+	}
+	local setupSaveButton = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "SAVE",
+		buttonText = "SAVE",
+		tooltip = "Save Changes and Return to main menu.",
+		clickHandler = function(control)
+			local index
+			if editIndex >= 0 then
+				index = editIndex
+			else
+				index = getNextAvailableIndex(isCharacterSettings, true)
+			end
+
+			--Error checking
+			if newSetup.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your setup.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+
+			if isCharacterSettings then
+				UniversalTracker.characterSavedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
+				if editIndex < 0 then
+					UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
+					UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
+				end
+			else
+				UniversalTracker.savedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
+				if editIndex < 0 then
+					UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
+					UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
+				end
+			end
+			
+			loadMenu(settingPages.mainMenu, currentPageIndex)
+			editIndex = -1
+		end
+	}
+	local setupCancelButton = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "CANCEL",
+		buttonText = "CANCEL",
+		tooltip = "Discard Changes and Return to main menu.",
+		clickHandler = function(control)
+			loadMenu(settingPages.mainMenu, currentPageIndex)
+			editIndex = -1
+		end
+	}
+
+	loadSetup = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Load Setup",
+		buttonText = "LOAD",
+		tooltip = "Sets the hidden state of all trackers to those described by this setup.\n\
+					Ignores unsaved changes.",
+		clickHandler = function(control)
+			local id = nil
+			if isCharacterSettings then
+				id = UniversalTracker.characterSavedVariables.setupList[editIndex].id
+			else
+				id = UniversalTracker.savedVariables.setupList[editIndex].id
+			end
+
+			if not id then return end
+
+			UniversalTracker.loadSetup(id)
+
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Setup has been loaded.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
+	deleteSetup = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Delete Setup",
+		buttonText = "DELETE",
+		tooltip = "PERMANENTLY removes this setup.\n\
+					This action cannot be undone.",
+		clickHandler = function(control)
+			if isCharacterSettings then
+				table.remove(UniversalTracker.characterSavedVariables.setupList, editIndex)
+			else
+				table.remove(UniversalTracker.savedVariables.setupList, editIndex)
+			end
+
+			loadMenu(settingPages.mainMenu, currentPageIndex)
+		end
+	}
+
+	copySetupToAccount = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "COPY (ACCOUNT)",
+		buttonText = "COPY",
+		tooltip = "Creates a copy of the current setup and saves it to your account's setups.",
+		clickHandler = function(control)
+			local index = getNextAvailableIndex(false, true)
+
+			--Error checking
+			if newSetup.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your setup.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+
+			UniversalTracker.savedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
+			UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
+			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("You have successfully created a new copy of this setup.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			--Don't load a new menu.
+		end
+	}
+
+	copySetupToCharacter = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "COPY (Character)",
+		buttonText = "COPY",
+		tooltip = "Creates a copy of the current setup and saves it to your characters's setups.",
+		clickHandler = function(control)
+			local index = getNextAvailableIndex(true, true)
+
+			--Error checking
+			if newSetup.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your tracker.", "A copy was not created.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+			UniversalTracker.characterSavedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
+			UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
+			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
+			
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("You have successfully created a new copy of this setup.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			--Don't load a new menu.
+		end
+	}
+
+	---------------------------------------
+	---		Trackers (Management)  		---
+	---------------------------------------
 	
+	setNewTrackerSaveType = {
+		type = LibHarvensAddonSettings.ST_DROPDOWN,
+		label = "Save Destination",
+		tooltip = "Choose where to save this tracker.",
+		items = {
+			{name = "Account", data = 1},
+			{name = "Character", data = 2},
+		},
+		getFunction = function() if isCharacterSettings then return "Character" else return "Account" end end,
+		setFunction = function(control, itemName, itemData)
+			if itemName == "Account" then
+				isCharacterSettings = false
+			elseif itemName == "Character" then
+				isCharacterSettings = true
+			end
+		end,
+		default = 1,
+	}
+
+	--Fancy back buttons.
+	local trackerSaveButton = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "SAVE",
+		buttonText = "SAVE",
+		tooltip = "Save Changes and Return to main menu.",
+		clickHandler = function(control)
+			local index
+			if editIndex >= 0 then
+				index = editIndex
+			else
+				index = getNextAvailableIndex(isCharacterSettings)
+			end
+			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
+
+			--Error checking
+			if newTracker.name == "" then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter a name for your tracker.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+			if not next(newTracker.hashedAbilityIDs) then
+				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+				messageParams:SetText("You must enter at least one ability ID for your tracker.")
+				messageParams:SetLifespanMS(3000)
+				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				return
+			end
+
+			if not isCharacterSettings then
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(newTracker)
+				if editIndex < 0 then
+					UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
+				end
+				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
+				temporarilyShowControl(index)
+			else
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(newTracker)
+				if editIndex < 0 then
+					UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
+				end
+				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
+				temporarilyShowControl(index)
+			end
+			
+			
+			loadMenu(settingPages.mainMenu, currentPageIndex)
+			editIndex = -1
+		end
+	}
+	local trackerCancelButton = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "CANCEL",
+		buttonText = "CANCEL",
+		tooltip = "Discard Changes and Return to main menu.",
+		clickHandler = function(control)
+			loadMenu(settingPages.mainMenu, currentPageIndex)
+			if editIndex >= 0 then
+				if not isCharacterSettings then
+					UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[editIndex]) --Load old changes
+					temporarilyShowControl(editIndex)
+				else
+					UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[editIndex]) --Load old changes
+					temporarilyShowControl(editIndex)
+				end
+			end
+			editIndex = -1
+		end
+	}
+
 	deleteTracker = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "Delete Tracker",
@@ -609,13 +1146,13 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
-	copyToAccount = {
+	copyTrackerToAccount = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "COPY (ACCOUNT)",
 		buttonText = "COPY",
 		tooltip = "Creates a copy of the current tracker and saves it to your account's trackers.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
+			local index = getNextAvailableIndex(false)
 			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
 
 			--Error checking
@@ -637,6 +1174,8 @@ function UniversalTracker.InitSettings()
 			end
 
 			UniversalTracker.savedVariables.trackerList[index] = copyTracker(newTracker, true)
+			UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			
 			
@@ -649,13 +1188,13 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
-	copyToCharacter = {
+	copyTrackerToCharacter = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "COPY (Character)",
 		buttonText = "COPY",
-		tooltip = "Creates a copy of the current tracker and saves it to your account's trackers.",
+		tooltip = "Creates a copy of the current tracker and saves it to your character's trackers.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
+			local index = getNextAvailableIndex(true)
 			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
 
 			--Error checking
@@ -677,6 +1216,8 @@ function UniversalTracker.InitSettings()
 			end
 
 			UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(newTracker, true)
+			UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			
 			
@@ -690,7 +1231,7 @@ function UniversalTracker.InitSettings()
 	}
 
 	---------------------------------------
-	---			Add New Tracker		    ---
+	---		Trackers (General)		    ---
 	---------------------------------------
 
 	local setNewTrackerName = {
@@ -923,7 +1464,7 @@ function UniversalTracker.InitSettings()
 
 
 	-----------------------------------------
-	---			Add New Tracker (List)    ---
+	---			Trackers (List)			  ---
 	-----------------------------------------
 
 	columnCount = {
@@ -983,7 +1524,7 @@ function UniversalTracker.InitSettings()
 	}
 
 	-----------------------------------------
-	---			Add New Tracker (Text)    ---
+	---			Trackers (Text)		      ---
 	-----------------------------------------
 
 	local hideDuration = {
@@ -1475,95 +2016,6 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.unitLabel.y
 	}
 
--------------------------------------------------------------------------------------------
-
-	setNewTrackerSaveType = {
-		type = LibHarvensAddonSettings.ST_DROPDOWN,
-		label = "Save Destination",
-		tooltip = "Choose where to save this tracker.",
-		items = {
-			{name = "Account", data = 1},
-			{name = "Character", data = 2},
-		},
-		getFunction = function() if isCharacterSettings then return "Character" else return "Account" end end,
-		setFunction = function(control, itemName, itemData)
-			if itemName == "Account" then
-				isCharacterSettings = false
-			elseif itemName == "Character" then
-				isCharacterSettings = true
-			end
-		end,
-		default = 1,
-	}
-
-	--Fancy back buttons.
-	local saveButton = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "SAVE",
-		buttonText = "SAVE",
-		tooltip = "Save Changes and Return to main menu.",
-		clickHandler = function(control)
-			local index
-			if editIndex >= 0 then
-				index = editIndex
-			else
-				index = getNextAvailableIndex(isCharacterSettings)
-			end
-			newTracker.hashedAbilityIDs = createHashedIDList(newTracker.abilityIDs)
-
-			--Error checking
-			if newTracker.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your tracker.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
-				return
-			end
-			if not next(newTracker.hashedAbilityIDs) then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter at least one ability ID for your tracker.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
-				return
-			end
-
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = copyTracker(newTracker)
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-				temporarilyShowControl(index)
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(newTracker)
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-				temporarilyShowControl(index)
-			end
-			
-			
-			loadMenu(settingPages.mainMenu, currentPageIndex)
-			editIndex = -1
-		end
-	}
-	local cancelButton = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "CANCEL",
-		buttonText = "CANCEL",
-		tooltip = "Discard Changes and Return to main menu.",
-		clickHandler = function(control)
-			loadMenu(settingPages.mainMenu, currentPageIndex)
-			if editIndex >= 0 then
-				if not isCharacterSettings then
-					UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[editIndex]) --Load old changes
-					temporarilyShowControl(editIndex)
-				else
-					UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[editIndex]) --Load old changes
-					temporarilyShowControl(editIndex)
-				end
-			end
-			editIndex = -1
-		end
-	}
-
 	---------------------------------------
 	---		Utilities (Print)			---
 	---------------------------------------
@@ -1585,7 +2037,7 @@ function UniversalTracker.InitSettings()
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "TARGET",
 		buttonText = "PRINT EFFECTS",
-		tooltip = "Prints information about a target's nearby effects.\n\
+		tooltip = "Prints information about a target's effects.\n\
 					Exit the menu and look at a target within 3 seconds to get their information.",
 		clickHandler = function(control)
 			zo_callLater(function() 
@@ -1634,9 +2086,13 @@ function UniversalTracker.InitSettings()
 
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.offBalance)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.offBalance)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1658,9 +2114,13 @@ function UniversalTracker.InitSettings()
 
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.stagger)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.stagger)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1681,9 +2141,13 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.relentlessFocus)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.relentlessFocus)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1705,9 +2169,13 @@ function UniversalTracker.InitSettings()
 
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mercilessResolve)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mercilessResolve)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1728,9 +2196,13 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.alkosh)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.alkosh)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1751,9 +2223,13 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mk)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mk)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1774,9 +2250,13 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecShock)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecShock)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1797,9 +2277,13 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecFire)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecFire)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1820,9 +2304,13 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecIce)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecIce)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1844,9 +2332,13 @@ function UniversalTracker.InitSettings()
 
 			if not isCharacterSettings then
 				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.synergyCooldown)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.synergyCooldown)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
@@ -1862,7 +2354,9 @@ function UniversalTracker.InitSettings()
 	---			Menu Groupings			---
 	---------------------------------------
 
-	settingPages.mainMenu = {mainMenuLabel, trackedListMenuButton, addNewTrackerButton, utilityMenuButton}
+	settingPages.mainMenu = {setupLabel, setupListMenuButton, addNewSetupButton, trackerLabel, trackedListMenuButton, addNewTrackerButton, otherLabel, utilityMenuButton}
+	settingPages.setupList = {accountSetupsLabel, characterSetupsLabel, navLabel, returnToMainMenuButton}
+	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
 	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, hideTracker,
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, 
@@ -1870,7 +2364,7 @@ function UniversalTracker.InitSettings()
 									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
 														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
-									navLabel, cancelButton, saveButton}
+									navLabel, trackerCancelButton, trackerSaveButton}
 	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, 
 									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
 									navLabel, returnToMainMenuButton}
