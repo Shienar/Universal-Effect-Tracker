@@ -165,19 +165,20 @@ local function temporarilyShowControl(index)
 	end
 end
 
-local function copySetup(source, dest)
-	dest = {}
+local function copySetup(source)
+	local dest = {}
 
 	dest.name = source.name
 	dest.id = source.id
-	dest.trackerIDList = {}
 	for k, v in pairs(source.trackerIDList) do
 		dest.trackerIDList[k] = v
 	end
+
+	return dest
 end
 
-local function copyTracker(source, dest, nullifyControls)
-	dest = {}
+local function copyTracker(source, nullifyControls)
+	local dest = {}
 
 	-- Removing usage of ZO_DeepTableCopy in fear that it is the reason that this addon is corrupting save files.
 
@@ -191,7 +192,6 @@ local function copyTracker(source, dest, nullifyControls)
 	dest.listSettings.verticalOffsetScale = source.listSettings.verticalOffsetScale
 	dest.textSettings = {}
 	dest.textSettings.duration = {}
-	dest.textSettings.duration.color = {}
 	dest.textSettings.duration.color.r = source.textSettings.duration.color.r
 	dest.textSettings.duration.color.g = source.textSettings.duration.color.g
 	dest.textSettings.duration.color.b = source.textSettings.duration.color.b
@@ -201,7 +201,6 @@ local function copyTracker(source, dest, nullifyControls)
 	dest.textSettings.duration.y = source.textSettings.duration.y
 	dest.textSettings.duration.hidden = source.textSettings.duration.hidden
 	dest.textSettings.stacks = {}
-	dest.textSettings.stacks.color = {}
 	dest.textSettings.stacks.color.r = source.textSettings.stacks.color.r
 	dest.textSettings.stacks.color.g = source.textSettings.stacks.color.g
 	dest.textSettings.stacks.color.b = source.textSettings.stacks.color.b
@@ -211,7 +210,6 @@ local function copyTracker(source, dest, nullifyControls)
 	dest.textSettings.stacks.y = source.textSettings.stacks.y
 	dest.textSettings.stacks.hidden = source.textSettings.stacks.hidden
 	dest.textSettings.abilityLabel = {}
-	dest.textSettings.abilityLabel.color = {}
 	dest.textSettings.abilityLabel.color.r = source.textSettings.abilityLabel.color.r
 	dest.textSettings.abilityLabel.color.g = source.textSettings.abilityLabel.color.g
 	dest.textSettings.abilityLabel.color.b = source.textSettings.abilityLabel.color.b
@@ -221,7 +219,6 @@ local function copyTracker(source, dest, nullifyControls)
 	dest.textSettings.abilityLabel.y = source.textSettings.abilityLabel.y
 	dest.textSettings.abilityLabel.hidden = source.textSettings.abilityLabel.hidden
 	dest.textSettings.unitLabel = {}
-	dest.textSettings.unitLabel.color = {}
 	dest.textSettings.unitLabel.color.r = source.textSettings.unitLabel.color.r
 	dest.textSettings.unitLabel.color.g = source.textSettings.unitLabel.color.g
 	dest.textSettings.unitLabel.color.b = source.textSettings.unitLabel.color.b
@@ -231,11 +228,9 @@ local function copyTracker(source, dest, nullifyControls)
 	dest.textSettings.unitLabel.y = source.textSettings.unitLabel.y
 	dest.textSettings.unitLabel.hidden = source.textSettings.unitLabel.hidden
 	dest.textSettings.unitLabel.accountName = source.textSettings.unitLabel.accountName
-	dest.abilityIDs = {}
 	for k, v in pairs(source.abilityIDs) do
 		dest.abilityIDs[k] = v
 	end
-	dest.hashedAbilityIDs = {}
 	for k, v in pairs(source.hashedAbilityIDs) do
 		dest.hashedAbilityIDs[k] = v
 	end
@@ -245,8 +240,6 @@ local function copyTracker(source, dest, nullifyControls)
 	dest.scale = source.scale
 	dest.hidden = source.hidden
 
-	dest.control = {}
-	dest.animation = {}
 	if source.control.head then
 		if nullifyControls then
 			dest.control.head = nil
@@ -313,8 +306,11 @@ local function copyTracker(source, dest, nullifyControls)
 			index = index + 1
 		else
 			table.remove(dest.abilityIDs, index)
+			dest.hashedAbilityIDs[dest.abilityIDs[index]] = nil
 		end
 	end
+
+	return dest
 end
 
 local function getNextAvailableIndex(charSettings, isSetup)
@@ -461,7 +457,7 @@ function UniversalTracker.InitSettings()
 						clickHandler = function(control)
 							editIndex = k
 							isCharacterSettings = false
-							copySetup(UniversalTracker.savedVariables.setupList[editIndex], newSetup)
+							newSetup = copySetup(UniversalTracker.savedVariables.setupList[editIndex])
 							loadMenu(settingPages.newSetup, 2)
 
 							--Remove the save destination
@@ -525,7 +521,7 @@ function UniversalTracker.InitSettings()
 						clickHandler = function(control)
 							editIndex = k
 							isCharacterSettings = true
-							copySetup(UniversalTracker.characterSavedVariables.setupList[editIndex], newSetup)
+							newSetup = copySetup(UniversalTracker.characterSavedVariables.setupList[editIndex])
 							loadMenu(settingPages.newSetup, 2)
 
 							--Remove the save destination
@@ -954,13 +950,13 @@ function UniversalTracker.InitSettings()
 			end
 
 			if isCharacterSettings then
-				copySetup(newSetup, UniversalTracker.characterSavedVariables.setupList[index])
+				UniversalTracker.characterSavedVariables.setupList[index] = copySetup(newSetup)
 				if editIndex < 0 then
 					UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 					UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 				end
 			else
-				copySetup(newSetup, UniversalTracker.savedVariables.setupList[index])
+				UniversalTracker.savedVariables.setupList[index] = copySetup(newSetup)
 				if editIndex < 0 then
 					UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 					UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
@@ -1043,7 +1039,7 @@ function UniversalTracker.InitSettings()
 				return
 			end
 
-			copySetup(newSetup, UniversalTracker.savedVariables.setupList[index])
+			UniversalTracker.savedVariables.setupList[index] = copySetup(newSetup)
 			UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 			
@@ -1073,7 +1069,7 @@ function UniversalTracker.InitSettings()
 				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
 				return
 			end
-			copySetup(newSetup, UniversalTracker.characterSavedVariables.setupList[index])
+			UniversalTracker.characterSavedVariables.setupList[index] = copySetup(newSetup)
 			UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 			
@@ -1144,7 +1140,7 @@ function UniversalTracker.InitSettings()
 			end
 
 			if not isCharacterSettings then
-				copyTracker(newTracker, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(newTracker)
 				if editIndex < 0 then
 					UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
@@ -1152,7 +1148,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 				temporarilyShowControl(index)
 			else
-				copyTracker(newTracker, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(newTracker)
 				if editIndex < 0 then
 					UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
@@ -1247,7 +1243,7 @@ function UniversalTracker.InitSettings()
 				return
 			end
 
-			copyTracker(newTracker, UniversalTracker.savedVariables.trackerList[index], true)
+			UniversalTracker.savedVariables.trackerList[index] = copyTracker(newTracker, true)
 			UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
@@ -1289,7 +1285,7 @@ function UniversalTracker.InitSettings()
 				return
 			end
 
-			copyTracker(newTracker, UniversalTracker.characterSavedVariables.trackerList[index], true)
+			UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(newTracker, true)
 			UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2159,12 +2155,12 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.offBalance, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.offBalance)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.offBalance, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.offBalance)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2187,12 +2183,12 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.stagger, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.stagger)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.stagger, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.stagger)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2214,12 +2210,12 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.relentlessFocus, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.relentlessFocus)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.relentlessFocus, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.relentlessFocus)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2242,12 +2238,12 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.mercilessResolve, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mercilessResolve)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.mercilessResolve, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mercilessResolve)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2269,12 +2265,12 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.alkosh, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.alkosh)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.alkosh, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.alkosh)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2296,12 +2292,12 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.mk, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mk)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.mk, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.mk)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2323,12 +2319,12 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.ecShock, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecShock)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.ecShock, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecShock)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2350,12 +2346,12 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.ecFire, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecFire)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.ecFire, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecFire)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2377,12 +2373,12 @@ function UniversalTracker.InitSettings()
 		clickHandler = function(control)
 			local index = getNextAvailableIndex(isCharacterSettings)
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.ecIce, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecIce)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.ecIce, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.ecIce)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
@@ -2405,12 +2401,12 @@ function UniversalTracker.InitSettings()
 			local index = getNextAvailableIndex(isCharacterSettings)
 
 			if not isCharacterSettings then
-				copyTracker(UniversalTracker.presets.synergyCooldown, UniversalTracker.savedVariables.trackerList[index])
+				UniversalTracker.savedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.synergyCooldown)
 				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			else
-				copyTracker(UniversalTracker.presets.synergyCooldown, UniversalTracker.characterSavedVariables.trackerList[index])
+				UniversalTracker.characterSavedVariables.trackerList[index] = copyTracker(UniversalTracker.presets.synergyCooldown)
 				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
