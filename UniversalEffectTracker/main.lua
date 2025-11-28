@@ -1,16 +1,6 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
-
---[[ 
-	To-do List
-		- Setups:
-			- Character or account save destination.
-			- A setup can contain any number of trackers.
-			- Loading a setup will enable the relevant trackers and disable all irrelevant ones.
-			- LibRadialMenu integration.
-		- Tracker Types:
-			- Add a textureless, one-line control.
-]]
+ 
 UniversalTracker.defaults = {
 	nextID = 0,
 	nextSetupID = 0,
