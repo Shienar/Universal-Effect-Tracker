@@ -1,6 +1,14 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
- 
+
+--[[
+	TODO LIST:
+		- Replace the linked list with a 1-indexed array. The linked
+		- list was supposed to reduce the amount of anchor/list changes
+		- on insertions/removals, but I'm doing N anchor changes to support
+		- columns anyways, and the linked list is going to be harder to maintain.
+]]
+
 UniversalTracker.defaults = {
 	nextID = 0,
 	nextSetupID = 0,
@@ -1041,11 +1049,11 @@ function UniversalTracker.Initialize()
     UniversalTracker.InitSettings()
 
 	for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
-		UniversalTracker.savedVariables.trackerList.control = {object = nil, key = nil}
+		v.control = {object = nil, key = nil}
 		UniversalTracker.InitSingleDisplay(v)
 	end
 	for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-		UniversalTracker.characterSavedVariables.trackerList.control = {object = nil, key = nil}
+		v.control = {object = nil, key = nil}
 		UniversalTracker.InitSingleDisplay(v)
 	end
 
