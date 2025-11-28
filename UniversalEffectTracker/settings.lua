@@ -665,7 +665,7 @@ function UniversalTracker.InitSettings()
 						clickHandler = function(control)
 							editIndex = k
 							isCharacterSettings = false
-							newTracker = copyTracker(UniversalTracker.savedVariables.trackerList[editIndex])
+							copyTracker(UniversalTracker.savedVariables.trackerList[editIndex], newTracker)
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
@@ -741,7 +741,7 @@ function UniversalTracker.InitSettings()
 						clickHandler = function(control)
 							editIndex = k
 							isCharacterSettings = true
-							newTracker = copyTracker(UniversalTracker.characterSavedVariables.trackerList[editIndex])
+							copyTracker(UniversalTracker.characterSavedVariables.trackerList[editIndex],newTracker)
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
