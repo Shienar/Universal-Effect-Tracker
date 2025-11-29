@@ -542,7 +542,7 @@ local function updateList(settingsTable, unitTag)
 
 	--Step 1: Removed list elements if the unittag's entity no longer exists.
 	for i = 1, #settingsTable.control do
-		if not DoesUnitExist(currentControlNode.value.unitTag) or (string.find(currentControlNode.value.unitTag, "boss") and IsUnitDead(currentControlNode.value.unitTag)) then
+		if not DoesUnitExist(settingsTable.control[i].unitTag) or (string.find(settingsTable.control[i].unitTag, "boss") and IsUnitDead(settingsTable.control[i].unitTag)) then
 			shouldUpdateAnchors = true
 
 			--free objects
