@@ -541,12 +541,12 @@ local function updateList(settingsTable, unitTag)
 	local shouldUpdateAnchors = false
 
 	--Step 1: Removed list elements if the unittag's entity no longer exists.
-	for i = 1, #settingsTable.control do
-		if not DoesUnitExist(settingsTable.control[i].unitTag) or (string.find(settingsTable.control[i].unitTag, "boss") and IsUnitDead(settingsTable.control[i].unitTag)) then
+	for i = #settingsTable.control, 1, -1 do
+		if settingsTable.control[i] and (not DoesUnitExist(settingsTable.control[i].unitTag) or (string.find(settingsTable.control[i].unitTag, "boss") and IsUnitDead(settingsTable.control[i].unitTag))) then
 			shouldUpdateAnchors = true
 
 			--free objects
-			if settingsTable.animation[i].object then
+			if settingsTable.animation[i] and settingsTable.animation[i].object then
 				UniversalTracker.barPool:ReleaseObject(settingsTable.control[i].key)
 				UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation[i].key)
 				table.remove(settingsTable.animation, i)
@@ -578,34 +578,36 @@ local function updateList(settingsTable, unitTag)
 			end
 		end
 
-		local index = #settingsTable.control
-		while #unusedTags > 0 do
-			local currentTagIndex = tonumber(string.gsub(settingsTable.control[index].unitTag, "%D", ""))
-			local hasDoneInsertion = false
-			for k, v in pairs(unusedTags) do
-				if currentTagIndex and k > currentTagIndex then
-					--object creation
-					local newControl, newControlKey 
-					local newAnimation, newAnimationKey
-					if settingsTable.animation[1].object then
-						newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
-						newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
-						InitBar(settingsTable, unitTag..k, newControl, newAnimation)
-						table.insert(settingsTable.animation[index], index + 1, {object = newAnimation, key = newAnimationKey})
-					else
-						newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
-						InitCompact(settingsTable, unitTag..k, newControl)
-					end
+		--insert unused tags into the tables in sorted order based off of unit tag
+		for k, v in pairs(unusedTags) do
+			shouldUpdateAnchors = true
 
-					table.insert(settingsTable.control[index], index + 1, {object = newControl, key = newControlKey, unitTag = unitTag..k})
+			--object creation
+			local newControl, newControlKey 
+			local newAnimation, newAnimationKey
+			if settingsTable.animation[1].object then
+				newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
+				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
+				InitBar(settingsTable, unitTag..k, newControl, newAnimation)
+				table.insert(settingsTable.animation, {object = newAnimation, key = newAnimationKey})
+			else
+				newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
+				InitCompact(settingsTable, unitTag..k, newControl)
+			end
 
-					index = index + 1
-					hasDoneInsertion = true
+			local insertIndex = 1
+			local currentTag = string.gsub(settingsTable.control[insertIndex].unitTag, "%D+", "") --gsub returns 2 arguments and tonumber takes 2 arguments. not a wanted interaction
+			while settingsTable.control[insertIndex] and tonumber(currentTag) < k do
+				insertIndex = insertIndex + 1
+				if settingsTable.control[insertIndex] then
+					currentTag = string.gsub(settingsTable.control[insertIndex].unitTag, "%D+", "")
+				else
 					break
 				end
 			end
-			if not hasDoneInsertion then
-				index = index - 1
+			table.insert(settingsTable.control, insertIndex, {object = newControl, key = newControlKey, unitTag = unitTag..k})
+			if settingsTable.animation[1].object then
+				table.insert(settingsTable.animation, insertIndex, {object = newAnimation, key = newAnimationKey})
 			end
 		end
 	end
