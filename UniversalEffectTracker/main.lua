@@ -717,6 +717,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
 				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
+			elseif not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			end
 
 			InitCompact(settingsTable, unitTag, UniversalTracker.Controls[settingsTable.id].object)
@@ -732,6 +734,9 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Compact") then
 				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
+				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
+			elseif not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			end
