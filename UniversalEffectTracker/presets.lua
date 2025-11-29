@@ -3,14 +3,6 @@ UniversalTracker = UniversalTracker or {}
 UniversalTracker.presets = {
     offBalance = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Off Balance Preset",
         type = "Bar",
         targetType = "Reticle Target",
@@ -124,14 +116,6 @@ UniversalTracker.presets = {
     },
     stagger = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Stagger Preset",
         type = "Compact",
         targetType = "Player",
@@ -208,14 +192,6 @@ UniversalTracker.presets = {
     },
     relentlessFocus = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Relentless Focus Preset",
         type = "Compact",
         targetType = "Player",
@@ -289,14 +265,6 @@ UniversalTracker.presets = {
     },
     mercilessResolve = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Merciless Resolve Preset",
         type = "Compact",
         targetType = "Player",
@@ -370,14 +338,6 @@ UniversalTracker.presets = {
     },
     alkosh = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Alkosh Preset",
         type = "Bar",
         targetType = "Reticle Target",
@@ -453,14 +413,6 @@ UniversalTracker.presets = {
     },
     mk = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Martial Knowledge Preset",
         type = "Compact",
         targetType = "Reticle Target",
@@ -534,14 +486,6 @@ UniversalTracker.presets = {
     },
     ecShock = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "EC (Shock) Preset",
         type = "Compact",
         targetType = "Reticle Target",
@@ -615,14 +559,6 @@ UniversalTracker.presets = {
     },
     ecFire = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "EC (Fire) Preset",
         type = "Compact",
         targetType = "Reticle Target",
@@ -696,14 +632,6 @@ UniversalTracker.presets = {
     },
     ecIce = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "EC (Ice) Preset",
         type = "Compact",
         targetType = "Reticle Target",
@@ -777,14 +705,6 @@ UniversalTracker.presets = {
     },
     synergyCooldown = {
 	    id = -1,
-        control = {
-            object = nil,
-            key = nil,
-        },
-        animation = {
-            object = nil,
-            key = nil,
-        },
         name = "Resource Synergy Cooldown Preset",
         type = "Bar",
         targetType = "Player",
