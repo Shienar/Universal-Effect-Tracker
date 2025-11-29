@@ -17,14 +17,6 @@ local isCharacterSettings = false
 -- These are default values for a new tracker.
 local newTracker = {
 	id = -1,
-	control = {
-		object = nil,
-		key = nil,
-	},
-	animation = {
-		object = nil,
-		key = nil,
-	},
 	name = "",
 	type = "Compact",
 	targetType = "Player",
@@ -132,11 +124,11 @@ local function temporarilyShowControl(index)
 	local controlObject
 	local controlList
 	if not isCharacterSettings and UniversalTracker.savedVariables.trackerList[index] then
-		controlObject = UniversalTracker.savedVariables.trackerList[index].control.object
-		controlList = UniversalTracker.savedVariables.trackerList[index].control
+		controlList = UniversalTracker.Controls[UniversalTracker.savedVariables.trackerList[index].id]
+		controlObject = controlList.object
 	elseif UniversalTracker.characterSavedVariables.trackerList[index] then
-		controlObject = UniversalTracker.characterSavedVariables.trackerList[index].control.object
-		controlList = UniversalTracker.characterSavedVariables.trackerList[index].control
+		controlList = UniversalTracker.Controls[UniversalTracker.characterSavedVariables.trackerList[index].id]
+		controlObject = controlList.object
 	end
 	if controlObject then
 		controlObject:SetHidden(false)
@@ -215,20 +207,20 @@ function UniversalTracker.loadSetup(id)
 	for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 		if v and v.name and v.id then
 			v.hidden = not idList[v.id]
-			if v.control and v.control.object then
-				v.control.object:SetHidden(v.hidden)
-			elseif v.control and v.control[1] and v.control[1].object then
-				UniversalTracker.refreshList(v, string.gsub(v.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[v.id] and UniversalTracker.Controls[v.id].object then
+				UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
+			elseif UniversalTracker.Controls[v.id] and UniversalTracker.Controls[v.id][1] and UniversalTracker.Controls[v.id][1].object then
+				UniversalTracker.refreshList(v, string.gsub(UniversalTracker.Controls[v.id][1].unitTag, "%d+", ""))
 			end
 		end
 	end
 	for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 		if v and v.name and v.id then
 			v.hidden = not idList[v.id]
-			if v.control and v.control.object then
-				v.control.object:SetHidden(v.hidden)
-			elseif v.control and v.control[1] and v.control[1].object then
-				UniversalTracker.refreshList(v, string.gsub(v.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[v.id] and UniversalTracker.Controls[v.id].object then
+				UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
+			elseif UniversalTracker.Controls[v.id] and UniversalTracker.Controls[v.id][1] and UniversalTracker.Controls[v.id][1].object then
+				UniversalTracker.refreshList(v, string.gsub(UniversalTracker.Controls[v.id][1].unitTag, "%d+", ""))
 			end
 		end
 	end
@@ -312,7 +304,6 @@ function UniversalTracker.InitSettings()
 							newSetup = ZO_DeepTableCopy(UniversalTracker.savedVariables.setupList[editIndex])
 							loadMenu(settingPages.newSetup, 2)
 
-							
 							--Remove the save destination
 							settings:RemoveSettings(6, 1, false)
 
@@ -657,14 +648,6 @@ function UniversalTracker.InitSettings()
 			--reset local variables
 			newTracker = {
 				id = -1,
-				control = {
-					object = nil,
-					key = nil,
-				},
-				animation = {
-					object = nil,
-					key = nil,
-				},
 				name = "",
 				type = "Compact",
 				targetType = "Player",
@@ -1043,18 +1026,18 @@ function UniversalTracker.InitSettings()
 					This action cannot be undone.",
 		clickHandler = function(control)
 
-			if newTracker.control.object then
-				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..newTracker.control.object:GetName())
-				if newTracker.control.object:GetNamedChild("Stacks") then
+			if UniversalTracker.Controls[newTracker.id].object then
+				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.Controls[newTracker.id].object:GetName())
+				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks") then
 					--compact
-					UniversalTracker.compactPool:ReleaseObject(newTracker.control.key)
+					UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[newTracker.id].key)
 				else
 					--bar 
-					UniversalTracker.barPool:ReleaseObject(newTracker.control.key)
+					UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[newTracker.id].key)
 				end
 			end
-			if newTracker.animation and newTracker.animation.object then
-				UniversalTracker.barAnimationPool:ReleaseObject(newTracker.animation.key)
+			if UniversalTracker.Animations[newTracker.id] and UniversalTracker.Animations[newTracker.id].object then
+				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[newTracker.id].key)
 			end
 
 			UniversalTracker.freeLists(newTracker)
@@ -1098,15 +1081,6 @@ function UniversalTracker.InitSettings()
 
 			UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(newTracker)
 
-			--Nullify controls for reinitialization
-			if newTracker.control.object then
-				UniversalTracker.savedVariables.trackerList[index].control = {object = nil, key = nil}
-				UniversalTracker.savedVariables.trackerList[index].animation = {object = nil, key = nil}
-			else
-				UniversalTracker.savedVariables.trackerList[index].control = {}
-				UniversalTracker.savedVariables.trackerList[index].animation = {}
-			end
-
 			UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
@@ -1149,15 +1123,6 @@ function UniversalTracker.InitSettings()
 			end
 
 			UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(newTracker)
-
-			--Nullify controls for reinitialization
-			if newTracker.control.object then
-				UniversalTracker.characterSavedVariables.trackerList[index].control = {object = nil, key = nil}
-				UniversalTracker.characterSavedVariables.trackerList[index].animation = {object = nil, key = nil}
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index].control = {}
-				UniversalTracker.characterSavedVariables.trackerList[index].animation = {}
-			end
 
 			UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
 			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
@@ -1254,10 +1219,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.overrideTexturePath end,
 		setFunction = function(value) 
 			newTracker.overrideTexturePath = value
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1271,10 +1236,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.hidden end,
 		setFunction = function(value) 
 			newTracker.hidden = value
-			if newTracker.control.object then
-				newTracker.control.object:SetHidden(value)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:SetHidden(value)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			if value == false then
 				temporarilyShowControl(editIndex)
@@ -1349,11 +1314,11 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.x end,
 		setFunction = function(value)
 			newTracker.x = value
-			if newTracker.control.object then
-				newTracker.control.object:ClearAnchors()
-				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
+				UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1372,11 +1337,11 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.y end,
 		setFunction = function(value) 
 			newTracker.y = value
-			if newTracker.control.object then
-				newTracker.control.object:ClearAnchors()
-				newTracker.control.object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
+				UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1395,10 +1360,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.scale end,
 		setFunction = function(value)
 			newTracker.scale = value
-			if newTracker.control.object then
-				newTracker.control.object:SetScale(value)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:SetScale(value)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1477,12 +1442,12 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.hidden = value 
-			if newTracker.control.object then
-				local child = newTracker.control.object:GetNamedChild("Duration")
-				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
+			if UniversalTracker.Controls[newTracker.id].object then
+				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
+				if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetHidden(value)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1499,12 +1464,12 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.duration.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control.object then
-				local child = newTracker.control.object:GetNamedChild("Duration")
-				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
+			if UniversalTracker.Controls[newTracker.id].object then
+				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
+				if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1523,12 +1488,12 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.duration.textScale = value
-			if newTracker.control.object then
-				local child = newTracker.control.object:GetNamedChild("Duration")
-				if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") end
+			if UniversalTracker.Controls[newTracker.id].object then
+				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
+				if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") end
 				child:SetScale(newTracker.textSettings.duration.textScale)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1547,18 +1512,18 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.x  = value
-			if newTracker.control.object then
-				local child = newTracker.control.object:GetNamedChild("Duration")
+			if UniversalTracker.Controls[newTracker.id].object then
+				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
 				if not child then 
-					child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") 
+					child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") 
 					child:ClearAnchors()
-					child:SetAnchor(RIGHT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(RIGHT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				else
 					child:ClearAnchors()
-					child:SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1577,18 +1542,18 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.y = value
-			if newTracker.control.object then
-				local child = newTracker.control.object:GetNamedChild("Duration")
+			if UniversalTracker.Controls[newTracker.id].object then
+				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
 				if not child then 
-					child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Duration") 
+					child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") 
 					child:ClearAnchors()
-					child:SetAnchor(RIGHT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(RIGHT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				else
 					child:ClearAnchors()
-					child:SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
+					child:SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1602,10 +1567,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.hidden = value 
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Stacks"):SetHidden(value)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetHidden(value)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1622,10 +1587,10 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.stacks.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1644,10 +1609,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.stacks.textScale = value
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1666,11 +1631,11 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.x  = value
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
-				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):ClearAnchors()
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1689,11 +1654,11 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.y = value
-			if newTracker.contro.objectl then
-				newTracker.control.object:GetNamedChild("Stacks"):ClearAnchors()
-				newTracker.control.object:GetNamedChild("Stacks"):SetAnchor(CENTER, newTracker.control.object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):ClearAnchors()
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1707,10 +1672,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.hidden = value 
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1727,10 +1692,10 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.abilityLabel.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control and newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1749,10 +1714,10 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.abilityLabel.textScale = value
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1771,11 +1736,11 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.x = value
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1794,11 +1759,11 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.y = value
-			if newTracker.control.object then
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
-				newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id].object then
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
+				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1812,14 +1777,14 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.hidden = value 
-			if newTracker.control.object then
-				if newTracker.control.object:GetNamedChild("UnitName") then
-					newTracker.control.object:GetNamedChild("UnitName"):SetHidden(value)
+			if UniversalTracker.Controls[newTracker.id].object then
+				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetHidden(value)
 				else
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1833,19 +1798,23 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.accountName end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.accountName = value 
-			if newTracker.control.object then
-				if DoesUnitExist(newTracker.unitTag) then
-					local child = newTracker.control.object:GetNamedChild("UnitName")
-					if not child then child = newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName") end
+			if UniversalTracker.Controls[newTracker.id].object then
+				local tag
+				if newTracker.targetType == "Player" then tag = "player" 
+				elseif newTracker.targetType == "Reticle Target" then tag = "reticleover" end
+				if DoesUnitExist(tag) then
+
+					local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName")
+					if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName") end
 					
 					if value then
-						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(newTracker.unitTag)))
+						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(tag)))
 					else
-						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(newTracker.unitTag)))
+						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(tag)))
 					end
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1862,14 +1831,14 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.unitLabel.color = {r = r, g = g, b = b, a = a}
-			if newTracker.control.object then
-				if newTracker.control.object:GetNamedChild("UnitName") then
-					newTracker.control.object:GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+			if UniversalTracker.Controls[newTracker.id].object then
+				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
 				else
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1888,14 +1857,14 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.unitLabel.textScale = value
-			if newTracker.control.object then
-				if newTracker.control.object:GetNamedChild("UnitName") then
-					newTracker.control.object:GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+			if UniversalTracker.Controls[newTracker.id].object then
+				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
 				else
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1914,16 +1883,16 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.x  = value
-			if newTracker.control.object then
-				if newTracker.control.object:GetNamedChild("UnitName") then
-					newTracker.control.object:GetNamedChild("UnitName"):ClearAnchors()
-					newTracker.control.object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, newTracker.control.object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+			if UniversalTracker.Controls[newTracker.id].object then
+				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):ClearAnchors()
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, UniversalTracker.Controls[newTracker.id].object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
 				else
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1942,16 +1911,16 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.y = value
-			if newTracker.control.object then
-				if newTracker.control.object:GetNamedChild("UnitName") then
-					newTracker.control.object:GetNamedChild("UnitName"):ClearAnchors()
-					newTracker.control.object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, newTracker.control.object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
+			if UniversalTracker.Controls[newTracker.id].object then
+				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):ClearAnchors()
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, UniversalTracker.Controls[newTracker.id].object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
 				else
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-					newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, newTracker.control.object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
+					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
 				end
-			elseif newTracker.control[1] and newTracker.control[1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(newTracker.control[1].unitTag, "%d+", ""))
+			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
 		end,

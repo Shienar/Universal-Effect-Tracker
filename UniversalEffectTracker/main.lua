@@ -24,6 +24,12 @@ UniversalTracker.defaultsCharacter = {
 UniversalTracker.unitIDs = {
 }
 
+-- A tracker's userdata objects are stored in these tables at index [id], not in the saved variables.
+UniversalTracker.Controls = {
+}
+UniversalTracker.Animations = {
+}
+
 local function InitCompact(settingsTable, unitTag, control)
 	-- Assign values to created controls.
 
@@ -454,7 +460,7 @@ end
 -- Assumes controls have been acquired from pools and initialized.
 local function UpdateListAnchors(settingsTable)
 	-- Only works on lists
-	if not (settingsTable.control and settingsTable.control[1]) then return end
+	if not (UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1]) then return end
 
 	local columns = {
 		[0] = {},
@@ -464,9 +470,9 @@ local function UpdateListAnchors(settingsTable)
 
 	--populate columns with lists of controls.
 	local nextColumnIndex = 0
-	for i = 1, #settingsTable.control do
-		if settingsTable.control[i].object then
-			columns[nextColumnIndex][#columns[nextColumnIndex] + 1] = settingsTable.control[i].object
+	for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+		if UniversalTracker.Controls[settingsTable.id][i].object then
+			columns[nextColumnIndex][#columns[nextColumnIndex] + 1] = UniversalTracker.Controls[settingsTable.id][i].object
 			nextColumnIndex = (nextColumnIndex + 1)%settingsTable.listSettings.columns
 		end
 	end
@@ -511,7 +517,8 @@ local function UpdateListAnchors(settingsTable)
 end
 
 local function InitList(settingsTable, unitTag)
-	settingsTable.control, settingsTable.animation = {}, {}
+	UniversalTracker.Controls[settingsTable.id] = {}
+	UniversalTracker.Animations[settingsTable.id] = {}
 
 	-- Initialize linked list with current group members / living bosses.
 	for i = 1, 12 do
@@ -523,13 +530,13 @@ local function InitList(settingsTable, unitTag)
 				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
 				InitBar(settingsTable, unitTag..i, newControl, newAnimation)
 				
-				table.insert(settingsTable.animation, {object = newAnimation, key = newAnimationKey})
+				table.insert(UniversalTracker.Animations[settingsTable.id], {object = newAnimation, key = newAnimationKey})
 			elseif settingsTable.type == "Compact" then
 				newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
 				InitCompact(settingsTable, unitTag..i, newControl)
 			end
 
-			table.insert(settingsTable.control, {object = newControl, key = newControlKey, unitTag = unitTag..i})
+			table.insert(UniversalTracker.Controls[settingsTable.id], {object = newControl, key = newControlKey, unitTag = unitTag..i})
 		end
 	end
 
@@ -541,25 +548,27 @@ local function updateList(settingsTable, unitTag)
 	local shouldUpdateAnchors = false
 
 	--Step 1: Removed list elements if the unittag's entity no longer exists.
-	for i = #settingsTable.control, 1, -1 do
-		if settingsTable.control[i] and (not DoesUnitExist(settingsTable.control[i].unitTag) or (string.find(settingsTable.control[i].unitTag, "boss") and IsUnitDead(settingsTable.control[i].unitTag))) then
+	for i = #UniversalTracker.Controls[settingsTable.id], 1, -1 do
+		if UniversalTracker.Controls[settingsTable.id][i] and (not DoesUnitExist(UniversalTracker.Controls[settingsTable.id][i].unitTag) or 
+			(string.find(UniversalTracker.Controls[settingsTable.id][i].unitTag, "boss") and IsUnitDead(UniversalTracker.Controls[settingsTable.id][i].unitTag))) then
+
 			shouldUpdateAnchors = true
 
 			--free objects
-			if settingsTable.animation[i] and settingsTable.animation[i].object then
-				UniversalTracker.barPool:ReleaseObject(settingsTable.control[i].key)
-				UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation[i].key)
-				table.remove(settingsTable.animation, i)
+			if UniversalTracker.Animations[settingsTable.id][i] and UniversalTracker.Animations[settingsTable.id][i].object then
+				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
+				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id][i].key)
+				table.remove(UniversalTracker.Animations[settingsTable.id], i)
 			else
-				UniversalTracker.compactPool:ReleaseObject(settingsTable.control[i].key)
+				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 			end
 
-			table.remove(settingsTable.control, i)
+			table.remove(UniversalTracker.Controls[settingsTable.id], i)
 		end
 	end
 
 	--Step 2a: If the linked lists are empty, rebuild them.
-	if #settingsTable.control == 0 then
+	if #UniversalTracker.Controls[settingsTable.id] == 0 then
 		InitList(settingsTable, unitTag)
 		shouldUpdateAnchors = false
 	else
@@ -571,8 +580,8 @@ local function updateList(settingsTable, unitTag)
 
 		-- remove used tags from unused list.
 		-- note that an index is only in the unused list if the corresponding unit exists.
-		for i = 1, #settingsTable.control do
-			local index = tonumber(string.gsub(settingsTable.control[i].unitTag, "%D", ""))
+		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+			local index = tonumber(string.gsub(UniversalTracker.Controls[settingsTable.id][i].unitTag, "%D", ""))
 			if unusedTags[index] then
 				unusedTags[index] = nil
 			end
@@ -585,29 +594,29 @@ local function updateList(settingsTable, unitTag)
 			--object creation
 			local newControl, newControlKey 
 			local newAnimation, newAnimationKey
-			if settingsTable.animation[1].object then
+			if UniversalTracker.Animations[settingsTable.id][1].object then
 				newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
 				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
 				InitBar(settingsTable, unitTag..k, newControl, newAnimation)
-				table.insert(settingsTable.animation, {object = newAnimation, key = newAnimationKey})
+				table.insert(UniversalTracker.Animations[settingsTable.id], {object = newAnimation, key = newAnimationKey})
 			else
 				newControl, newControlKey = UniversalTracker.compactPool:AcquireObject()
 				InitCompact(settingsTable, unitTag..k, newControl)
 			end
 
 			local insertIndex = 1
-			local currentTag = string.gsub(settingsTable.control[insertIndex].unitTag, "%D+", "") --gsub returns 2 arguments and tonumber takes 2 arguments. not a wanted interaction
-			while settingsTable.control[insertIndex] and tonumber(currentTag) < k do
+			local currentTag = string.gsub(UniversalTracker.Controls[settingsTable.id][insertIndex].unitTag, "%D+", "") --gsub returns 2 arguments and tonumber takes 2 arguments. not a wanted interaction
+			while UniversalTracker.Controls[settingsTable.id][insertIndex] and tonumber(currentTag) < k do
 				insertIndex = insertIndex + 1
-				if settingsTable.control[insertIndex] then
-					currentTag = string.gsub(settingsTable.control[insertIndex].unitTag, "%D+", "")
+				if UniversalTracker.Controls[settingsTable.id][insertIndex] then
+					currentTag = string.gsub(UniversalTracker.Controls[settingsTable.id][insertIndex].unitTag, "%D+", "")
 				else
 					break
 				end
 			end
-			table.insert(settingsTable.control, insertIndex, {object = newControl, key = newControlKey, unitTag = unitTag..k})
-			if settingsTable.animation[1].object then
-				table.insert(settingsTable.animation, insertIndex, {object = newAnimation, key = newAnimationKey})
+			table.insert(UniversalTracker.Controls[settingsTable.id], insertIndex, {object = newControl, key = newControlKey, unitTag = unitTag..k})
+			if UniversalTracker.Animations[settingsTable.id][1].object then
+				table.insert(UniversalTracker.Animations[settingsTable.id], insertIndex, {object = newAnimation, key = newAnimationKey})
 			end
 		end
 	end
@@ -620,12 +629,12 @@ end
 -- settings (e.g font, scale, offset, etc.)
 function UniversalTracker.refreshList(settingsTable, unitTag)
 	if settingsTable.type == "Bar" then
-		for i = 1, #settingsTable.control do
-			InitBar(settingsTable, settingsTable.control[i].unitTag, settingsTable.control[i].object, settingsTable.animation[i].object)
+		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+			InitBar(settingsTable, UniversalTracker.Controls[settingsTable.id][i].unitTag, UniversalTracker.Controls[settingsTable.id][i].object, UniversalTracker.Animations[settingsTable.id][i].object)
 		end
 	elseif settingsTable.type == "Compact" then
-		for i = 1, #settingsTable.control do
-			InitCompact(settingsTable, settingsTable.control[i].unitTag, settingsTable.control[i].object)
+		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+			InitCompact(settingsTable, UniversalTracker.Controls[settingsTable.id][i].unitTag, UniversalTracker.Controls[settingsTable.id][i].object)
 		end
 	end
 
@@ -655,7 +664,7 @@ end
 
 function UniversalTracker.freeLists(settingsTable)
 	-- Don't do anything if not passed lists.
-	if settingsTable.control.object or (settingsTable.animation and settingsTable.animation.object) then
+	if UniversalTracker.Controls[settingsTable.id].object or (UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object) then
 		return
 	end
 
@@ -667,30 +676,22 @@ function UniversalTracker.freeLists(settingsTable)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
 	EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..settingsTable.id)
 
-	if string.find(settingsTable.control[1].object:GetName(), "Bar") then
-		for i = 1, #settingsTable.control do
-			UniversalTracker.barPool:ReleaseObject(settingsTable.control[i].key)
-			UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation[i].key)
+	if string.find(UniversalTracker.Controls[settingsTable.id][1].object:GetName(), "Bar") then
+		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+			UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
+			UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id][i].key)
 		end
-	elseif string.find(settingsTable.control[1].object:GetName(), "Compact") then
-		for i = 1, #settingsTable.control do
-			UniversalTracker.compactPool:ReleaseObject(settingsTable.control[i].key)
+	elseif string.find(UniversalTracker.Controls[settingsTable.id][1].object:GetName(), "Compact") then
+		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+			UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 		end
 	end
 
-	settingsTable.control = {}
-	settingsTable.animation = {}
+	UniversalTracker.Controls[settingsTable.id] = {}
+	UniversalTracker.Animations[settingsTable.id] = {}
 
 end
 
--- Array:
-			-- 1-Indexed
-			-- Contiguous (table.insert, table.remove)
-			-- Value = {object, key, unitTag}
-			-- Value = {object, key}
-			-- List = True <-> trackerList[index].control[1] ~= nil. control[1] can be a table containing nil elements but it won't itself be nil.
-			-- Add to list: table.insert(trackerList[index].control, newIndex, value) - shifts old element at newIndex to the right.
-			-- Remove from list: table.remove(trackerList[index].control, index)
 function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	local unitTag = nil
@@ -706,48 +707,51 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	if unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Compact" then
-			if settingsTable.control[1] then --bar panel
+			if not UniversalTracker.Controls[settingsTable.id] then
+				UniversalTracker.Controls[settingsTable.id] = {}
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
+			elseif UniversalTracker.Controls[settingsTable.id][1] then --list
 				UniversalTracker.freeLists(settingsTable)
-				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
-			elseif not settingsTable.control.object then
-				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
-			elseif string.find(settingsTable.control.object:GetName(), "Bar") then
-				UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation.key)
-				UniversalTracker.barPool:ReleaseObject(settingsTable.control.key)
-				settingsTable.control.object, settingsTable.control.key = UniversalTracker.compactPool:AcquireObject()
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
+			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Bar") then
+				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
+				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			end
 
-			InitCompact(settingsTable, unitTag, settingsTable.control.object)
+			InitCompact(settingsTable, unitTag, UniversalTracker.Controls[settingsTable.id].object)
 		elseif settingsTable.type == "Bar" then
-			if settingsTable.control[1] then --bar panel
+			if not UniversalTracker.Controls[settingsTable.id] then
+				UniversalTracker.Controls[settingsTable.id] = {}
+				UniversalTracker.Animations[settingsTable.id] = {}
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
+				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
+			elseif UniversalTracker.Controls[settingsTable.id][1] then --list
 				UniversalTracker.freeLists(settingsTable)
-				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
-				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
-			elseif not settingsTable.control.object then
-				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
-				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
-			elseif string.find(settingsTable.control.object:GetName(), "Compact") then
-				UniversalTracker.compactPool:ReleaseObject(settingsTable.control.key)
-				settingsTable.control.object, settingsTable.control.key = UniversalTracker.barPool:AcquireObject()
-				settingsTable.animation.object, settingsTable.animation.key = UniversalTracker.barAnimationPool:AcquireObject()
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
+				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
+			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Compact") then
+				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
+				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			end
-			InitBar(settingsTable, unitTag, settingsTable.control.object, settingsTable.animation.object)
+			InitBar(settingsTable, unitTag, UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].object)
 		end
 	elseif unitTag == "boss" or unitTag == "group" then
-		if settingsTable.control.object then
-			UniversalTracker.barPool:ReleaseObject(settingsTable.control.key)
+		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id].object then
+			UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
 		end
-		if settingsTable.animation and settingsTable.animation.object then
-			UniversalTracker.barAnimationPool:ReleaseObject(settingsTable.animation.key)
+		if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object then
+			UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
 		end
 
-		if settingsTable.control[1] and settingsTable.control[1].object then
+		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1] and UniversalTracker.Controls[settingsTable.id][1].object then
 			--List is initialized.
 			--Is the initialized list of appropriate type?
-			if not string.find(settingsTable.control[1].object:GetName(), settingsTable.type) then
+			if not string.find(UniversalTracker.Controls[settingsTable.id][1].object:GetName(), settingsTable.type) then
 				UniversalTracker.freeLists(settingsTable)
 				InitList(settingsTable, unitTag)
-			elseif not string.find(settingsTable.control[1].unitTag, unitTag) then
+			elseif not string.find(UniversalTracker.Controls[settingsTable.id][1].unitTag, unitTag) then
 				-- Is the initialized list of appropriate target type?
 				UniversalTracker.freeLists(settingsTable)
 				InitList(settingsTable, unitTag)
@@ -779,26 +783,26 @@ local function fragmentChange(oldState, newState)
 	if newState == SCENE_FRAGMENT_SHOWN then
 		--unhide everything.
 		for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
-			if v.control then
-				if v.control.object then
-					v.control.object:SetHidden(v.hidden)
+			if UniversalTracker.Controls[v.id] then
+				if UniversalTracker.Controls[v.id].object then
+					UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
 				else
-					for i = 1, #v.control do
-						if v.control.object then
-							v.control.object:SetHidden(v.hidden)
+					for i = 1, #UniversalTracker.Controls[v.id] do
+						if UniversalTracker.Controls[v.id][i].object then
+							UniversalTracker.Controls[v.id][i].object:SetHidden(v.hidden)
 						end
 					end
 				end
 			end
 		end
 		for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-			if v.control then
-				if v.control.object then
-					v.control.object:SetHidden(v.hidden)
+			if UniversalTracker.Controls[v.id] then
+				if UniversalTracker.Controls[v.id].object then
+					UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
 				else
-					for i = 1, #v.control do
-						if v.control.object then
-							v.control.object:SetHidden(v.hidden)
+					for i = 1, #UniversalTracker.Controls[v.id] do
+						if UniversalTracker.Controls[v.id][i].object then
+							UniversalTracker.Controls[v.id][i].object:SetHidden(v.hidden)
 						end
 					end
 				end
@@ -807,26 +811,26 @@ local function fragmentChange(oldState, newState)
 	elseif newState == SCENE_FRAGMENT_HIDDEN then
 		--hide everything.
 		for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
-			if v.control then
-				if v.control.object then
-					v.control.object:SetHidden(true)
+			if UniversalTracker.Controls[v.id] then
+				if UniversalTracker.Controls[v.id].object then
+					UniversalTracker.Controls[v.id].object:SetHidden(true)
 				else
-					for i = 1, #v.control do
-						if v.control.object then
-							v.control.object:SetHidden(true)
+					for i = 1, #UniversalTracker.Controls[v.id] do
+						if UniversalTracker.Controls[v.id][i].object then
+							UniversalTracker.Controls[v.id][i].object:SetHidden(true)
 						end
 					end
 				end
 			end
 		end
 		for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-			if v.control then
-				if v.control.object then
-					v.control.object:SetHidden(true)
+			if UniversalTracker.Controls[v.id] then
+				if UniversalTracker.Controls[v.id].object then
+					UniversalTracker.Controls[v.id].object:SetHidden(true)
 				else
-					for i = 1, #v.control do
-						if v.control.object then
-							v.control.object:SetHidden(v.hidden)
+					for i = 1, #UniversalTracker.Controls[v.id] do
+						if UniversalTracker.Controls[v.id][i].object then
+							UniversalTracker.Controls[v.id][i].object:SetHidden(v.hidden)
 						end
 					end
 				end
@@ -849,40 +853,8 @@ function UniversalTracker.Initialize()
 			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
 			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 	end)
-	UniversalTracker.barPool:SetCustomResetBehavior(function(control)
-		for k, v  in pairs(UniversalTracker.savedVariables.trackerList) do
-			if v.control and v.control.object == control then
-				v.control.object = nil
-				v.control.key = nil
-				return
-			end
-		end
-		for k, v  in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-			if v.control and v.control.object == control then
-				v.control.object = nil
-				v.control.key = nil
-				return
-			end
-		end
-	end)
 
 	UniversalTracker.barAnimationPool = ZO_AnimationPool:New("SingleBarAnimation")
-	UniversalTracker.barAnimationPool:SetCustomResetBehavior(function(animation)
-		for k, v  in pairs(UniversalTracker.savedVariables.trackerList) do
-			if v.animation and v.animation.object == animation then
-				v.animation.object = nil
-				v.animation.key = nil
-				return
-			end
-		end
-		for k, v  in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-			if v.animation and v.animation.object == animation then
-				v.animation.object = nil
-				v.animation.key = nil
-				return
-			end
-		end
-	end)
 
 	UniversalTracker.compactPool = ZO_ControlPool:New("SingleCompactTracker", GuiRoot)
     UniversalTracker.compactPool:SetResetFunction(function(control)
@@ -892,31 +864,14 @@ function UniversalTracker.Initialize()
 			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
 			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 	end)
-	UniversalTracker.compactPool:SetCustomResetBehavior(function(control)
-		for k, v  in pairs(UniversalTracker.savedVariables.trackerList) do
-			if v.control and v.control.object == control then
-				v.control.object = nil
-				v.control.key = nil
-				return
-			end
-		end
-		for k, v  in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-			if v.control and v.control.object == control then
-				v.control.object = nil
-				v.control.key = nil
-				return
-			end
-		end
-	end)
 
     UniversalTracker.InitSettings()
 
+
 	for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
-		v.control = {object = nil, key = nil}
 		UniversalTracker.InitSingleDisplay(v)
 	end
 	for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-		v.control = {object = nil, key = nil}
 		UniversalTracker.InitSingleDisplay(v)
 	end
 
