@@ -1982,6 +1982,32 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
+	--Not a saved variable
+	local spamRegistered = false
+	local debugSpam = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Event Spam",
+		tooltip = "Registers with EVENT_COMBAT_EVENT to print all detected effect changes into the chat.\n\
+					THIS WILL CRASH YOUR FPS IF USED IN GROUP CONTENT.\n\
+					ONLY USED IT FOR TESTING FOR SPECIFIC ABILITY IDS",
+		getFunction = function() return spamRegistered end,
+		setFunction = function(value)
+			if value == true then
+				EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT, function(_, result, _, name, _, _, _, _, targetName, _, hitValue, _, _, _, _, _, id)
+					if result == ACTION_RESULT_EFFECT_GAINED then
+						d("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained for "..(hitValue/1000).." seconds")
+					elseif result == ACTION_RESULT_EFFECT_GAINED_DURATION then
+						d("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained Duration for "..(hitValue/1000).." seconds")
+					elseif result == ACTION_RESULT_EFFECT_FADED then
+						d("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Faded")
+					end
+				end)
+			else
+				EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT)
+			end						
+		end,
+		default = spamRegistered
+	}
 
 	---------------------------------------
 	---		Utilities (Presets)			---
@@ -2276,7 +2302,7 @@ function UniversalTracker.InitSettings()
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
 														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, trackerCancelButton, trackerSaveButton}
-	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, 
+	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, debugSpam,
 									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
 									navLabel, returnToMainMenuButton}
 

@@ -210,22 +210,6 @@ local function InitCompact(settingsTable, unitTag, control)
 							end
 						end
 					end)
-				elseif result == ACTION_RESULT_EFFECT_FADED then
-					-- Check again to ensure that no tracked buffs are in use.
-					-- Off balance + immunity will bug out otherwise since immunity starts before off balance ends
-					for i = 1, GetNumBuffs(unitTag) do
-						local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
-						if settingsTable.hashedAbilityIDs[buffID] then return end
-					end
-
-					EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-					if settingsTable.overrideTexturePath == "" then
-						textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
-					else
-						textureControl:SetTexture(settingsTable.overrideTexture)
-					end
-					durationControl:SetText("")
-					stackControl:SetText("")
 				end	
 			end
 		end)
@@ -712,12 +696,15 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			elseif UniversalTracker.Controls[settingsTable.id][1] then --list
 				UniversalTracker.freeLists(settingsTable)
+				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Bar") then
 				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
 				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			elseif not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
+				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			end
 
@@ -730,13 +717,19 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			elseif UniversalTracker.Controls[settingsTable.id][1] then --list
 				UniversalTracker.freeLists(settingsTable)
+				UniversalTracker.Controls[settingsTable.id] = {}
+				UniversalTracker.Animations[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Compact") then
 				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				UniversalTracker.Controls[settingsTable.id] = {}
+				UniversalTracker.Animations[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			elseif not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
+				UniversalTracker.Controls[settingsTable.id] = {}
+				UniversalTracker.Animations[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			end
