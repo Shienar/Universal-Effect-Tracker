@@ -1215,10 +1215,15 @@ function UniversalTracker.InitSettings()
 	local setNewTrackerOverrideTexture = {
 		type = LibHarvensAddonSettings.ST_EDIT,
 		label = "Override Texture",
-		tooltip = "The tracker will use a texture based off of the AbilityID unless you specify an overide here.",
+		tooltip = "The tracker will use a texture based off of the AbilityID unless you specify an overide here.\n\
+					You can specify a texture path or abilityID here.",
 		getFunction = function() return newTracker.overrideTexturePath end,
-		setFunction = function(value) 
-			newTracker.overrideTexturePath = value
+		setFunction = function(value)
+			if tonumber(value) ~= nil and GetAbilityIcon(tonumber(value)) ~= "/esoui/art/icons/icon_missing.dds" then
+				newTracker.overrideTexturePath = GetAbilityIcon(tonumber(value))
+			else
+				newTracker.overrideTexturePath = value
+			end
 			if UniversalTracker.Controls[newTracker.id].object then
 				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
 			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then

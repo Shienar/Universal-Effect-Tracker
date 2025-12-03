@@ -70,7 +70,7 @@ local function InitCompact(settingsTable, unitTag, control)
 	if settingsTable.overrideTexturePath == "" then
 		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 	else
-		textureControl:SetTexture(settingsTable.overrideTexture)
+		textureControl:SetTexture(settingsTable.overrideTexturePath)
 	end
 
 	--check for current active effects.
@@ -84,7 +84,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(abilityId))
 				else
-					textureControl:SetTexture(settingsTable.overrideTexture)
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 				if not IsAbilityPermanent(abilityId) then
 					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
@@ -95,7 +95,7 @@ local function InitCompact(settingsTable, unitTag, control)
 							if settingsTable.overrideTexturePath == "" then
 								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 							else
-								textureControl:SetTexture(settingsTable.overrideTexture)
+								textureControl:SetTexture(settingsTable.overrideTexturePath)
 							end
 							durationControl:SetText("")
 							stackControl:SetText("")
@@ -130,7 +130,7 @@ local function InitCompact(settingsTable, unitTag, control)
 						if settingsTable.overrideTexturePath == "" then
 							textureControl:SetTexture(GetAbilityIcon(abilityId))
 						else
-							textureControl:SetTexture(settingsTable.overrideTexture)
+							textureControl:SetTexture(settingsTable.overrideTexturePath)
 						end
 						if not IsAbilityPermanent(abilityId) then
 							EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
@@ -141,7 +141,7 @@ local function InitCompact(settingsTable, unitTag, control)
 									if settingsTable.overrideTexturePath == "" then
 										textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 									else
-										textureControl:SetTexture(settingsTable.overrideTexture)
+										textureControl:SetTexture(settingsTable.overrideTexturePath)
 									end
 									durationControl:SetText("")
 									stackControl:SetText("")
@@ -163,7 +163,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 				else
-					textureControl:SetTexture(settingsTable.overrideTexture)
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
@@ -186,7 +186,7 @@ local function InitCompact(settingsTable, unitTag, control)
 					if settingsTable.overrideTexturePath == "" then
 						textureControl:SetTexture(GetAbilityIcon(abilityID))
 					else
-						textureControl:SetTexture(settingsTable.overrideTexture)
+						textureControl:SetTexture(settingsTable.overrideTexturePath)
 					end
 
 					local endTime = GetGameTimeMilliseconds() + hitValue
@@ -198,7 +198,7 @@ local function InitCompact(settingsTable, unitTag, control)
 							if settingsTable.overrideTexturePath == "" then
 								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 							else
-								textureControl:SetTexture(settingsTable.overrideTexture)
+								textureControl:SetTexture(settingsTable.overrideTexturePath)
 							end
 							durationControl:SetText("")
 							stackControl:SetText("")
@@ -231,7 +231,7 @@ local function InitCompact(settingsTable, unitTag, control)
 			if settingsTable.overrideTexturePath == "" then
 				textureControl:SetTexture(GetAbilityIcon(abilityID))
 			else
-				textureControl:SetTexture(settingsTable.overrideTexture)
+				textureControl:SetTexture(settingsTable.overrideTexturePath)
 			end
 			if changeType ~= EFFECT_RESULT_FADED and not IsAbilityPermanent(abilityID) then
 				endTime = endTime * 1000
@@ -243,7 +243,7 @@ local function InitCompact(settingsTable, unitTag, control)
 						if settingsTable.overrideTexturePath == "" then
 							textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 						else
-							textureControl:SetTexture(settingsTable.overrideTexture)
+							textureControl:SetTexture(settingsTable.overrideTexturePath)
 						end
 						durationControl:SetText("")
 						stackControl:SetText("")
@@ -259,7 +259,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 				else
-					textureControl:SetTexture(settingsTable.overrideTexture)
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
@@ -271,6 +271,7 @@ end
 
 local function InitBar(settingsTable, unitTag, control, animation)
 
+	d(settingsTable.ove)
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
@@ -318,7 +319,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	if settingsTable.overrideTexturePath == "" then
 		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 	else
-		textureControl:SetTexture(settingsTable.overrideTexture)
+		textureControl:SetTexture(settingsTable.overrideTexturePath)
 	end
 
 	-- Start the animation if event has already passed.
@@ -329,7 +330,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(abilityId))
 				else
-					textureControl:SetTexture(settingsTable.overrideTexture)
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 				abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityId)))
 				if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
@@ -355,7 +356,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 						if settingsTable.overrideTexturePath == "" then
 							textureControl:SetTexture(GetAbilityIcon(abilityId))
 						else
-							textureControl:SetTexture(settingsTable.overrideTexture)
+							textureControl:SetTexture(settingsTable.overrideTexturePath)
 						end
 						abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityId)))
 						if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
@@ -375,7 +376,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
 				else
-					textureControl:SetTexture(settingsTable.overrideTexture)
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 				abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(settingsTable.abilityIDs[1])))
 				if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
@@ -400,7 +401,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 					if settingsTable.overrideTexturePath == "" then
 						textureControl:SetTexture(GetAbilityIcon(abilityID))
 					else
-						textureControl:SetTexture(settingsTable.overrideTexture)
+						textureControl:SetTexture(settingsTable.overrideTexturePath)
 					end
 					abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityID)))
 					if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
@@ -422,7 +423,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 			if settingsTable.overrideTexturePath == "" then
 				textureControl:SetTexture(GetAbilityIcon(abilityID))
 			else
-				textureControl:SetTexture(settingsTable.overrideTexture)
+				textureControl:SetTexture(settingsTable.overrideTexturePath)
 			end
 			abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityID)))
 			if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
