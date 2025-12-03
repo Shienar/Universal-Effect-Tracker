@@ -271,7 +271,6 @@ end
 
 local function InitBar(settingsTable, unitTag, control, animation)
 
-	d(settingsTable.ove)
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)

@@ -1999,12 +1999,13 @@ function UniversalTracker.InitSettings()
 		setFunction = function(value)
 			if value == true then
 				EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT, function(_, result, _, name, _, _, _, _, targetName, _, hitValue, _, _, _, _, _, id)
+					if not targetName or targetName == "" then return end
 					if result == ACTION_RESULT_EFFECT_GAINED then
-						d("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained for "..(hitValue/1000).." seconds")
+						UniversalTracker.chat:Print("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained for "..(hitValue/1000).." seconds")
 					elseif result == ACTION_RESULT_EFFECT_GAINED_DURATION then
-						d("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained Duration for "..(hitValue/1000).." seconds")
+						UniversalTracker.chat:Print("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained Duration for "..(hitValue/1000).." seconds")
 					elseif result == ACTION_RESULT_EFFECT_FADED then
-						d("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Faded")
+						UniversalTracker.chat:Print("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Faded")
 					end
 				end)
 			else
