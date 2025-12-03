@@ -23,6 +23,7 @@ UniversalTracker.defaultsCharacter = {
 
 UniversalTracker.unitIDs = {
 }
+UniversalTracker.altPlayerTag = "" -- e.g. "group2" vs "player"
 
 -- A tracker's userdata objects are stored in these tables at index [id], not in the saved variables.
 UniversalTracker.Controls = {
@@ -172,7 +173,10 @@ local function InitCompact(settingsTable, unitTag, control)
 	else
 		-- Track internal effects. (Thanks code65536 for making me aware of these)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-			if unitTag == UniversalTracker.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
+			if (unitTag == UniversalTracker.unitIDs[unitID] or 
+				(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
+				settingsTable.hashedAbilityIDs[abilityID] then
+
 				-- Only track effects not affected by event_effect_changed
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
@@ -389,7 +393,10 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	else
 		-- Track internal effects. (Thanks code65536 for making me aware of these)
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-			if unitTag == UniversalTracker.unitIDs[unitID] and settingsTable.hashedAbilityIDs[abilityID] then
+			if (unitTag == UniversalTracker.unitIDs[unitID] or 
+				(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
+				settingsTable.hashedAbilityIDs[abilityID] then
+
 				-- Only track effects not affected by event_effect_changed
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
@@ -556,7 +563,7 @@ local function updateList(settingsTable, unitTag)
 		InitList(settingsTable, unitTag)
 		shouldUpdateAnchors = false
 	else
-		-- Step 2b: Else, Insert unaccounted for unitIDs into sorted positions within the linked list
+		-- Step 2b: Else, Insert unaccounted for unit tags into sorted positions within the linked list
 		local unusedTags = {}
 		for i = 1, 12 do
 			if DoesUnitExist(unitTag..i) and not (settingsTable.targetType == "Boss" and IsUnitDead(unitTag..i)) then unusedTags[i] = true end
@@ -910,11 +917,17 @@ function UniversalTracker.Initialize()
 	HUD_FRAGMENT:RegisterCallback("StateChange", fragmentChange)
 
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
-		if tag == "player" or string.find(tag, "group") or string.find(tag, "boss") then
+		if not UniversalTracker.unitIDs[unitID] and (tag == "player" or string.find(tag, "group") or string.find(tag, "boss")) then
 			UniversalTracker.unitIDs[unitID] = tag
-		end
+			if tag ~= "player" and GetUnitName(tag) == GetUnitName("player") then
+				UniversalTracker.altPlayerTag = tag
+			end
+		end  
 	end)
-	local function resetIDList() UniversalTracker.unitIDs = {} end
+	local function resetIDList() 
+		UniversalTracker.unitIDs = {} 
+		UniversalTracker.altPlayerTag = ""
+	end
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_GROUP_MEMBER_JOINED, resetIDList)
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_GROUP_MEMBER_LEFT, resetIDList)
