@@ -605,6 +605,28 @@ local function updateList(settingsTable, unitTag)
 		end
 	end
 
+	--Step 3: Sanity check to make sure there are no duplicate unit tags in list.
+	local usedTags = {}
+	
+	for i = #UniversalTracker.Controls[settingsTable.id], 1, -1 do
+		if UniversalTracker.Controls[settingsTable.id][i] and not usedTags[UniversalTracker.Controls[settingsTable.id][i].unitTag] then
+			usedTags[#usedTags+1] = UniversalTracker.Controls[settingsTable.id][i].unitTag
+		elseif UniversalTracker.Controls[settingsTable.id][i] then
+			shouldUpdateAnchors = true
+
+			--free objects
+			if UniversalTracker.Animations[settingsTable.id][i] and UniversalTracker.Animations[settingsTable.id][i].object then
+				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
+				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id][i].key)
+				table.remove(UniversalTracker.Animations[settingsTable.id], i)
+			else
+				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
+			end
+
+			table.remove(UniversalTracker.Controls[settingsTable.id], i)
+		end 
+	end
+
 	if shouldUpdateAnchors then
 		UpdateListAnchors(settingsTable)
 	end
