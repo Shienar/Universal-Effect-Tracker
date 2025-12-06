@@ -768,11 +768,13 @@ UniversalTracker.presets = {
             [1] = "48052",
             [2] = "85434",
             [3] = "63512",
+            [4] = "95924",
         },
         hashedAbilityIDs = { --abilityIDs are keys
             [48052] = true,
             [85434] = true,
             [63512] = true,
+            [95924] = true,
         },
         overrideTexturePath = "",
         x = 0,

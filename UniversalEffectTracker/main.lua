@@ -617,7 +617,7 @@ local function updateList(settingsTable, unitTag)
 	
 	for i = #UniversalTracker.Controls[settingsTable.id], 1, -1 do
 		if UniversalTracker.Controls[settingsTable.id][i] and not usedTags[UniversalTracker.Controls[settingsTable.id][i].unitTag] then
-			usedTags[#usedTags+1] = UniversalTracker.Controls[settingsTable.id][i].unitTag
+			usedTags[UniversalTracker.Controls[settingsTable.id][i].unitTag] = true
 		elseif UniversalTracker.Controls[settingsTable.id][i] then
 			shouldUpdateAnchors = true
 
