@@ -1997,6 +1997,7 @@ function UniversalTracker.InitSettings()
 					ONLY USED IT FOR TESTING FOR SPECIFIC ABILITY IDS",
 		getFunction = function() return spamRegistered end,
 		setFunction = function(value)
+			spamRegistered = value
 			if value == true then
 				EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT, function(_, result, _, name, _, _, _, _, targetName, _, hitValue, _, _, _, _, _, id)
 					if not targetName or targetName == "" then return end

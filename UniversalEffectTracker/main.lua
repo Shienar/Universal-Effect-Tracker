@@ -688,13 +688,13 @@ function UniversalTracker.freeLists(settingsTable)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
 	EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..settingsTable.id)
-
-	if string.find(UniversalTracker.Controls[settingsTable.id][1].object:GetName(), "Bar") then
+	
+	if settingsTable.type == "Bar" then
 		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
 			UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 			UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id][i].key)
 		end
-	elseif string.find(UniversalTracker.Controls[settingsTable.id][1].object:GetName(), "Compact") then
+	elseif settingsTable.type == "Compact" then
 		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
 			UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 		end
