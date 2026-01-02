@@ -982,7 +982,7 @@ function UniversalTracker.InitSettings()
 					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				end
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-				temporarilyShowControl(index)
+				if not UniversalTracker.savedVariables.trackerList[index].hidden then temporarilyShowControl(index) end
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(newTracker)
 				if editIndex < 0 then
@@ -991,6 +991,7 @@ function UniversalTracker.InitSettings()
 				end
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 				temporarilyShowControl(index)
+				if not UniversalTracker.characterSavedVariables.trackerList[index].hidden then temporarilyShowControl(index) end
 			end
 			
 			
@@ -1319,11 +1320,13 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.x end,
 		setFunction = function(value)
 			newTracker.x = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
-				UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id] then
+				if UniversalTracker.Controls[newTracker.id].object then
+					UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
+					UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+				elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+					UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
+				end
 			end
 			temporarilyShowControl(editIndex)
 		end,
@@ -1342,11 +1345,13 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.y end,
 		setFunction = function(value) 
 			newTracker.y = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
-				UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
+			if UniversalTracker.Controls[newTracker.id] then
+				if UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id].object then
+					UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
+					UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
+				elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+					UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
+				end
 			end
 			temporarilyShowControl(editIndex)
 		end,

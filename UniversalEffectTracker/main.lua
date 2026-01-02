@@ -69,7 +69,7 @@ local function InitCompact(settingsTable, unitTag, control)
 	end
 
 	if settingsTable.overrideTexturePath == "" then
-		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+		textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 	else
 		textureControl:SetTexture(settingsTable.overrideTexturePath)
 	end
@@ -94,7 +94,7 @@ local function InitCompact(settingsTable, unitTag, control)
 							--Effect Expired
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+								textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 							else
 								textureControl:SetTexture(settingsTable.overrideTexturePath)
 							end
@@ -140,7 +140,7 @@ local function InitCompact(settingsTable, unitTag, control)
 									--Effect Expired
 									EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 									if settingsTable.overrideTexturePath == "" then
-										textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+										textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 									else
 										textureControl:SetTexture(settingsTable.overrideTexturePath)
 									end
@@ -162,7 +162,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				--target doesn't have an effect.
 				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+					textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 				else
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
@@ -200,7 +200,7 @@ local function InitCompact(settingsTable, unitTag, control)
 							--Effect Expired
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+								textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 							else
 								textureControl:SetTexture(settingsTable.overrideTexturePath)
 							end
@@ -245,7 +245,7 @@ local function InitCompact(settingsTable, unitTag, control)
 						--Effect Expired
 						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 						if settingsTable.overrideTexturePath == "" then
-							textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+							textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 						else
 							textureControl:SetTexture(settingsTable.overrideTexturePath)
 						end
@@ -261,7 +261,7 @@ local function InitCompact(settingsTable, unitTag, control)
 				end)
 			elseif changeType == EFFECT_RESULT_FADED and IsAbilityPermanent(abilityID) then
 				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+					textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 				else
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
@@ -320,7 +320,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 
 	if settingsTable.overrideTexturePath == "" then
-		textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+		textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 	else
 		textureControl:SetTexture(settingsTable.overrideTexturePath)
 	end
@@ -377,7 +377,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 				--New target doesn't have the effect.
 				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(settingsTable.abilityIDs[1]))
+					textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 				else
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
@@ -585,7 +585,7 @@ local function updateList(settingsTable, unitTag)
 			--object creation
 			local newControl, newControlKey 
 			local newAnimation, newAnimationKey
-			if UniversalTracker.Animations[settingsTable.id][1].object then
+			if settingsTable.type == "Bar" then
 				newControl, newControlKey = UniversalTracker.barPool:AcquireObject()
 				newAnimation, newAnimationKey = UniversalTracker.barAnimationPool:AcquireObject()
 				InitBar(settingsTable, unitTag..k, newControl, newAnimation)
@@ -606,7 +606,7 @@ local function updateList(settingsTable, unitTag)
 				end
 			end
 			table.insert(UniversalTracker.Controls[settingsTable.id], insertIndex, {object = newControl, key = newControlKey, unitTag = unitTag..k})
-			if UniversalTracker.Animations[settingsTable.id][1].object then
+			if settingsTable.type == "Bar" then
 				table.insert(UniversalTracker.Animations[settingsTable.id], insertIndex, {object = newAnimation, key = newAnimationKey})
 			end
 		end
@@ -622,7 +622,7 @@ local function updateList(settingsTable, unitTag)
 			shouldUpdateAnchors = true
 
 			--free objects
-			if UniversalTracker.Animations[settingsTable.id][i] and UniversalTracker.Animations[settingsTable.id][i].object then
+			if settingsTable.type == "Bar" and UniversalTracker.Animations[settingsTable.id][i] and UniversalTracker.Animations[settingsTable.id][i].object then
 				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id][i].key)
 				table.remove(UniversalTracker.Animations[settingsTable.id], i)
@@ -689,12 +689,15 @@ function UniversalTracker.freeLists(settingsTable)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
 	EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..settingsTable.id)
 	
-	if settingsTable.type == "Bar" then
+	--We might be freeing bar objects when passed a settingsTable that wants to initialize compact objects.
+	if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id][1] then
+		--Bar
 		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
 			UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 			UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id][i].key)
 		end
-	elseif settingsTable.type == "Compact" then
+	else
+		--Compact
 		for i = 1, #UniversalTracker.Controls[settingsTable.id] do
 			UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id][i].key)
 		end
