@@ -20,6 +20,7 @@ local newTracker = {
 	name = "",
 	type = "Compact",
 	targetType = "Player",
+	appliedBySelf = false,
 	listSettings = {
 		columns = 1,
 		horizontalOffsetScale = 1,
@@ -509,11 +510,11 @@ function UniversalTracker.InitSettings()
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
-							settings:RemoveSettings(8, 1, false)
+							settings:RemoveSettings(9, 1, false)
 
 							--dynamically add the extra ability IDs
 							for i = 1, (#UniversalTracker.savedVariables.trackerList[editIndex].abilityIDs) do
-								local newIndex = 7 + i
+								local newIndex = 8 + i
 								settings:AddSetting({
 									type = setNewAbilityID.type,
 									label = setNewAbilityID.label,
@@ -527,7 +528,7 @@ function UniversalTracker.InitSettings()
 											-- This set function gets executed twice (same millisecond) but we only want to run this once.
 											EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 												settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-												newTracker.abilityIDs[newIndex - 7] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+												newTracker.abilityIDs[newIndex - 8] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 												EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 											end)
 										end
@@ -554,7 +555,7 @@ function UniversalTracker.InitSettings()
 
 							-- Modify settings as needed to fit target type
 							local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
-							if newTracker.targetType == "Boss" or newTracker.targetType =="Group" then
+							if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then
 								-- Add list settings if needed
 								local textIndex = settings:GetIndexOf(textSettingsLabel, true)
 								if not listSettingIndex and textIndex then
@@ -585,11 +586,11 @@ function UniversalTracker.InitSettings()
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
-							settings:RemoveSettings(8, 1, false)
+							settings:RemoveSettings(9, 1, false)
 
 							--dynamically add the extra ability IDs
 							for i = 1, (#UniversalTracker.characterSavedVariables.trackerList[editIndex].abilityIDs) do
-								local newIndex = 7 + i
+								local newIndex = 8 + i
 								settings:AddSetting({
 									type = setNewAbilityID.type,
 									label = setNewAbilityID.label,
@@ -603,7 +604,7 @@ function UniversalTracker.InitSettings()
 											-- This set function gets executed twice (same millisecond) but we only want to run this once.
 											EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 												settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-												newTracker.abilityIDs[newIndex - 7] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+												newTracker.abilityIDs[newIndex - 8] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 												EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 											end)
 										end
@@ -625,6 +626,16 @@ function UniversalTracker.InitSettings()
 								if nameIndex then
 									settings:RemoveSettings(nameIndex, 6, false)
 									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+								end
+							end
+
+							-- Modify settings as needed to fit target type
+							local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
+							if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then
+								-- Add list settings if needed
+								local textIndex = settings:GetIndexOf(textSettingsLabel, true)
+								if not listSettingIndex and textIndex then
+									settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
 								end
 							end
 
@@ -651,6 +662,7 @@ function UniversalTracker.InitSettings()
 				name = "",
 				type = "Compact",
 				targetType = "Player",
+				appliedBySelf = false,
 				listSettings = {
 					columns = 1,
 					horizontalOffsetScale = 1,
@@ -1186,18 +1198,20 @@ function UniversalTracker.InitSettings()
 	local setNewTrackerTargetType = {
 		type = LibHarvensAddonSettings.ST_DROPDOWN,
 		label = "Target Type",
-		tooltip = "Choose who the tracker will focus on.",
+		tooltip = "Choose who the tracker will focus on.\n\n\
+					The \"All\" target type is currently experimental.",
 		items = {
 			{name = "Player", data = 1},
 			{name = "Group", data = 2},
 			{name = "Boss", data = 3},
-			{name = "Reticle Target", data = 4}
+			{name = "Reticle Target", data = 4},
+			{name = "All", data = 5}
 		},
 		getFunction = function() return newTracker.targetType end,
 		setFunction = function(control, itemName, itemData) 
 			newTracker.targetType = itemName
 			local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
-			if itemName == "Boss" or itemName =="Group" then
+			if itemName == "Boss" or itemName =="Group" or itemName == "All" then
 				-- Add list settings if needed
 				local textIndex = settings:GetIndexOf(textSettingsLabel, true)
 				if not listSettingIndex and textIndex then
@@ -1254,6 +1268,18 @@ function UniversalTracker.InitSettings()
 		default = newTracker.hidden
 	}
 
+	local appliedBySelf = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Only my effects",
+		tooltip = "Only track debuffs that you directly apply.\n\n \
+					Won't consistently work on Reticle Target trackers unless its a persistent one.",
+		getFunction = function() return newTracker.appliedBySelf end,
+		setFunction = function(value) 
+			newTracker.appliedBySelf = value
+		end,
+		default = newTracker.appliedBySelf
+	}
+
 	setNewAbilityID = {
 		type = LibHarvensAddonSettings.ST_EDIT,
 		label = "Ability ID",
@@ -1269,7 +1295,7 @@ function UniversalTracker.InitSettings()
 				-- This set function gets executed twice (same millisecond) but we only want to run this once.
 				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index 0", 20, function()
 					settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-					newTracker.abilityIDs[LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex - 7] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+					newTracker.abilityIDs[LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex - 8] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 					EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index 0")
 				end)
 			end
@@ -1284,26 +1310,26 @@ function UniversalTracker.InitSettings()
 		tooltip = "Adds an ability ID that you can track.",
 		clickHandler = function(control)
 			local newIndex = settings:GetIndexOf(add1AbilityID, true)
-			newTracker.abilityIDs[newIndex - 7] = ""
+			newTracker.abilityIDs[newIndex - 8] = ""
 			settings:AddSetting({
 				type = setNewAbilityID.type,
 				label = setNewAbilityID.label,
 				tooltip = setNewAbilityID.tooltip,
 				textType = setNewAbilityID.textType,
 				maxChars = setNewAbilityID.maxChars,
-				getFunction = function() return newTracker.abilityIDs[newIndex - 7] end,
+				getFunction = function() return newTracker.abilityIDs[newIndex - 8] end,
 				setFunction = function(value) 
-					newTracker.abilityIDs[newIndex - 7] = value
+					newTracker.abilityIDs[newIndex - 8] = value
 					if value == "0" then
 						-- This set function gets executed twice (same millisecond) but we only want to run this once.
 						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 							settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-							newTracker.abilityIDs[newIndex - 7] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+							newTracker.abilityIDs[newIndex - 8] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 						end)
 					end
 				end,
-				default = newTracker.abilityIDs[newIndex - 7]
+				default = newTracker.abilityIDs[newIndex - 8]
 			}, newIndex, false)
 		end
 	}
@@ -2307,7 +2333,7 @@ function UniversalTracker.InitSettings()
 	settingPages.setupList = {accountSetupsLabel, characterSetupsLabel, navLabel, returnToMainMenuButton}
 	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
-	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, hideTracker,
+	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, appliedBySelf, hideTracker,
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, 
 									positionLabel, newScale, newXOffset, newYOffset,
 									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,

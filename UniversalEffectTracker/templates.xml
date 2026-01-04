@@ -2,8 +2,8 @@
     <Animations>
         <AnimationTimeline name="SingleBarAnimation" virtual = "true">
             <Animations>
-                <ColorAnimation duration="3500" startColor="00FF00" endColor="FF0000" />
-                <CustomAnimation duration="3500">
+                <ColorAnimation duration="1" startColor="00FF00" endColor="FF0000" />
+                <CustomAnimation duration="1">
                     <UpdateFunction>
                         self:GetAnimatedControl():SetValue(1 - progress)
                         self:GetAnimatedControl():GetNamedChild("Duration"):SetText(zo_roundToZero((self:GetDuration()/1000)*(1-progress)))

@@ -1,6 +1,9 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
 
+-- TODO: EVENT_EFFECT_CHANGED for stack management. Helps with reapplying debuffs.
+-- 
+
 UniversalTracker.defaults = {
 	nextID = 0,
 	nextSetupID = 0,
@@ -21,15 +24,18 @@ UniversalTracker.defaultsCharacter = {
 	},
 }
 
-UniversalTracker.unitIDs = {
-}
+UniversalTracker.unitIDs = {}
 UniversalTracker.altPlayerTag = "" -- e.g. "group2" vs "player"
 
 -- A tracker's userdata objects are stored in these tables at index [id], not in the saved variables.
-UniversalTracker.Controls = {
-}
-UniversalTracker.Animations = {
-}
+UniversalTracker.Controls = {}
+UniversalTracker.Animations = {}
+
+
+--table[unitID] = {{key, trackerID}, {key, trackerID}, ...}
+UniversalTracker.targetIDs_Compact = {}
+UniversalTracker.targetIDs_Bar = {}
+UniversalTracker.targetIDs_BarAnimation = {}
 
 local function InitCompact(settingsTable, unitTag, control)
 	-- Assign values to created controls.
@@ -74,45 +80,45 @@ local function InitCompact(settingsTable, unitTag, control)
 		textureControl:SetTexture(settingsTable.overrideTexturePath)
 	end
 
-	--check for current active effects.
-	if DoesUnitExist(unitTag) then
-		for i = 1, GetNumBuffs(unitTag) do
-			local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
-			if settingsTable.hashedAbilityIDs[abilityId] then
-				endTime = endTime*1000
-				if stacks == 0 then stacks = "" end
-				stackControl:SetText(stacks)
-				if settingsTable.overrideTexturePath == "" then
-					textureControl:SetTexture(GetAbilityIcon(abilityId))
-				else
-					textureControl:SetTexture(settingsTable.overrideTexturePath)
-				end
-				if not IsAbilityPermanent(abilityId) then
-					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
-						local duration = (endTime-GetGameTimeMilliseconds())/1000
-						if duration < 0 then
-							--Effect Expired
-							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
+		--check for current active effects.
+		if DoesUnitExist(unitTag) then
+			for i = 1, GetNumBuffs(unitTag) do
+				local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
+				if settingsTable.hashedAbilityIDs[abilityId] then
+					endTime = endTime*1000
+					if stacks == 0 then stacks = "" end
+					stackControl:SetText(stacks)
+					if settingsTable.overrideTexturePath == "" then
+						textureControl:SetTexture(GetAbilityIcon(abilityId))
+					else
+						textureControl:SetTexture(settingsTable.overrideTexturePath)
+					end
+					if not IsAbilityPermanent(abilityId) then
+						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
+							local duration = (endTime-GetGameTimeMilliseconds())/1000
+							if duration < 0 then
+								--Effect Expired
+								EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+								if settingsTable.overrideTexturePath == "" then
+									textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
+								else
+									textureControl:SetTexture(settingsTable.overrideTexturePath)
+								end
+								durationControl:SetText("")
+								stackControl:SetText("")
 							else
-								textureControl:SetTexture(settingsTable.overrideTexturePath)
+								if duration < 2 then
+									durationControl:SetText(zo_roundToNearest(duration, 0.1))
+								else
+									durationControl:SetText(zo_roundToZero(duration))
+								end
 							end
-							durationControl:SetText("")
-							stackControl:SetText("")
-						else
-							if duration < 2 then
-								durationControl:SetText(zo_roundToNearest(duration, 0.1))
-							else
-								durationControl:SetText(zo_roundToZero(duration))
-							end
-						end
-					end)
+						end)
+					end
+					break
 				end
-				break
 			end
 		end
-	end
 
 	if unitTag == "reticleover" then
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
@@ -170,57 +176,58 @@ local function InitCompact(settingsTable, unitTag, control)
 				stackControl:SetText("")
 			end
 		end)
-	else
-		-- Track internal effects. (Thanks code65536 for making me aware of these)
-		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-			if (unitTag == UniversalTracker.unitIDs[unitID] or 
-				(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
-				settingsTable.hashedAbilityIDs[abilityID] then
+	end
+	-- Track internal effects. (Thanks code65536 for making me aware of these)
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, sourceType, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
+		if (unitTag == UniversalTracker.unitIDs[unitID] or
+			(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
+			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) and 
+			settingsTable.hashedAbilityIDs[abilityID] then
 
-				-- Only track effects not affected by event_effect_changed
-				for i = 1, GetNumBuffs(unitTag) do
-					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
-					if abilityID == buffID then return end
+			-- Only track effects not affected by event_effect_changed
+			for i = 1, GetNumBuffs(unitTag) do
+				local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
+				if abilityID == buffID then return end
+			end
+
+			if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
+				-- Can't get stack information, assume no stacks.
+				stackControl:SetText("")
+
+				if settingsTable.overrideTexturePath == "" then
+					textureControl:SetTexture(GetAbilityIcon(abilityID))
+				else
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 
-				if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
-					-- Can't get stack information, assume no stacks.
-					stackControl:SetText("")
-
-					if settingsTable.overrideTexturePath == "" then
-						textureControl:SetTexture(GetAbilityIcon(abilityID))
-					else
-						textureControl:SetTexture(settingsTable.overrideTexturePath)
-					end
-
-					local endTime = GetGameTimeMilliseconds() + hitValue
-					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
-						local duration = (endTime-GetGameTimeMilliseconds())/1000
-						if duration < 0 then
-							--Effect Expired
-							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-							else
-								textureControl:SetTexture(settingsTable.overrideTexturePath)
-							end
-							durationControl:SetText("")
-							stackControl:SetText("")
+				local endTime = GetGameTimeMilliseconds() + hitValue
+				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
+					local duration = (endTime-GetGameTimeMilliseconds())/1000
+					if duration < 0 then
+						--Effect Expired
+						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+						if settingsTable.overrideTexturePath == "" then
+							textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 						else
-							if duration < 2 then
-								durationControl:SetText(zo_roundToNearest(duration, 0.1))
-							else
-								durationControl:SetText(zo_roundToZero(duration))
-							end
+							textureControl:SetTexture(settingsTable.overrideTexturePath)
 						end
-					end)
-				end	
-			end
-		end)
-	end
-
-	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, _)
-		if settingsTable.hashedAbilityIDs[abilityID] then
+						durationControl:SetText("")
+						stackControl:SetText("")
+					else
+						if duration < 2 then
+							durationControl:SetText(zo_roundToNearest(duration, 0.1))
+						else
+							durationControl:SetText(zo_roundToZero(duration))
+						end
+					end
+				end)
+			end	
+		end
+	end)
+		
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, sourceType)
+		if settingsTable.hashedAbilityIDs[abilityID] and
+			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 
 			--if faded with others running then return.
 			if changeType == EFFECT_RESULT_FADED then
@@ -314,10 +321,8 @@ local function InitBar(settingsTable, unitTag, control, animation)
 		unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
 	end
 
-
 	barControl:SetValue(0)
 	durationControl:SetText("0")
-
 
 	if settingsTable.overrideTexturePath == "" then
 		textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
@@ -390,42 +395,44 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				animation:PlayInstantlyToEnd()
 			end
 		end)
-	else
-		-- Track internal effects. (Thanks code65536 for making me aware of these)
-		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, _, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-			if (unitTag == UniversalTracker.unitIDs[unitID] or 
-				(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
-				settingsTable.hashedAbilityIDs[abilityID] then
-
-				-- Only track effects not affected by event_effect_changed
-				for i = 1, GetNumBuffs(unitTag) do
-					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
-					if abilityID == buffID then return end
-				end
-
-				if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
-					if settingsTable.overrideTexturePath == "" then
-						textureControl:SetTexture(GetAbilityIcon(abilityID))
-					else
-						textureControl:SetTexture(settingsTable.overrideTexturePath)
-					end
-					abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityID)))
-					if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
-						unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
-					else
-						unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
-					end
-					for i = 1, animation:GetNumAnimations() do 
-						animation:GetAnimation(i):SetDuration(hitValue)
-					end
-					animation:PlayFromStart()
-				end
-			end
-		end)
 	end
 
-	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.. control:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, _) 
-		if changeType ~= EFFECT_RESULT_FADED and settingsTable.hashedAbilityIDs[abilityID] then
+	-- Track internal effects. (Thanks code65536 for making me aware of these)
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, sourceType, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
+		if (unitTag == UniversalTracker.unitIDs[unitID] or 
+			(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
+			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) and
+			settingsTable.hashedAbilityIDs[abilityID] then
+
+			-- Only track effects not affected by event_effect_changed
+			for i = 1, GetNumBuffs(unitTag) do
+				local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i) 
+				if abilityID == buffID then return end
+			end
+
+			if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
+				if settingsTable.overrideTexturePath == "" then
+					textureControl:SetTexture(GetAbilityIcon(abilityID))
+				else
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
+				end
+				abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityID)))
+				if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+				else
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+				end
+				for i = 1, animation:GetNumAnimations() do 
+					animation:GetAnimation(i):SetDuration(hitValue)
+				end
+				animation:PlayFromStart()
+			end
+		end
+	end)
+		
+
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.. control:GetName(), EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, _, abilityID, sourceType) 
+		if changeType ~= EFFECT_RESULT_FADED and settingsTable.hashedAbilityIDs[abilityID] and not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 			if settingsTable.overrideTexturePath == "" then
 				textureControl:SetTexture(GetAbilityIcon(abilityID))
 			else
@@ -444,7 +451,6 @@ local function InitBar(settingsTable, unitTag, control, animation)
 		end
 	end)
 	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name.. control:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
-
 end
 
 -- Clears and updates all anchors in the list.
@@ -503,7 +509,7 @@ local function UpdateListAnchors(settingsTable)
 	end
 	for i = 2, #columns[2] do
 		columns[2][i]:ClearAnchors()
-		columns[2][i]:SetAnchor(TOPLEFT, columns[0][i-1], BOTTOMLEFT, 0, verticalOffset)
+		columns[2][i]:SetAnchor(TOPLEFT, columns[2][i-1], BOTTOMLEFT, 0, verticalOffset)
 	end
 end
 
@@ -676,11 +682,6 @@ function UniversalTracker.refreshList(settingsTable, unitTag)
 end
 
 function UniversalTracker.freeLists(settingsTable)
-	-- Don't do anything if not passed lists.
-	if UniversalTracker.Controls[settingsTable.id].object or (UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object) then
-		return
-	end
-
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_BOSSES_CHANGED)
@@ -689,6 +690,11 @@ function UniversalTracker.freeLists(settingsTable)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
 	EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..settingsTable.id)
 	
+	-- Don't do anything if not passed lists.
+	if UniversalTracker.Controls[settingsTable.id].object or (UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object) then
+		return
+	end
+
 	--We might be freeing bar objects when passed a settingsTable that wants to initialize compact objects.
 	if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id][1] then
 		--Bar
@@ -710,6 +716,9 @@ end
 
 function UniversalTracker.InitSingleDisplay(settingsTable)
 
+	--Unregister potential "All" trackers.
+	if settingsTable.id then EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT) end
+
 	local unitTag = nil
 	if settingsTable.targetType == "Player" then
 		unitTag = "player"
@@ -726,16 +735,14 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 			if not UniversalTracker.Controls[settingsTable.id] then
 				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
-			elseif UniversalTracker.Controls[settingsTable.id][1] then --list
+			elseif UniversalTracker.Controls[settingsTable.id][1] or --list
+					not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
 				UniversalTracker.freeLists(settingsTable)
 				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Bar") then
 				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
 				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
-			elseif not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
 				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 			end
@@ -747,7 +754,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				UniversalTracker.Animations[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
-			elseif UniversalTracker.Controls[settingsTable.id][1] then --list
+			elseif UniversalTracker.Controls[settingsTable.id][1] or --list
+					not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
 				UniversalTracker.freeLists(settingsTable)
 				UniversalTracker.Controls[settingsTable.id] = {}
 				UniversalTracker.Animations[settingsTable.id] = {}
@@ -759,17 +767,14 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				UniversalTracker.Animations[settingsTable.id] = {}
 				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
 				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
-			elseif not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Animations[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
-				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
 			end
 			InitBar(settingsTable, unitTag, UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].object)
 		end
 	elseif unitTag == "boss" or unitTag == "group" then
+
 		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id].object then
 			UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+			UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
 		end
 		if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object then
 			UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
@@ -805,6 +810,322 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 		elseif unitTag == "group" then
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() updateList(settingsTable, unitTag) end)
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
+		end
+	elseif settingsTable.targetType == "All" then
+		--Free existing
+		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1] and (UniversalTracker.Controls[settingsTable.id][1].object or not next(UniversalTracker.Controls[settingsTable.id])) then --(potentially empty) list
+			UniversalTracker.freeLists(settingsTable)
+		else
+			if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id].object then
+				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+			end
+			if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object then
+				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
+			end
+		end
+
+		UniversalTracker.Controls[settingsTable.id] = {}
+		UniversalTracker.Animations[settingsTable.id] = {}
+
+		if settingsTable.type == "Compact" then
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT, function(_, result, _, _, _, _, _, sourceType, targetName, _, hitValue, _,  _, _, _, targetUnitId, abilityId, _)
+				if settingsTable.hashedAbilityIDs[abilityId] and hitValue ~= 1 and
+					(result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION) then
+
+					if (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
+						--Someone else applied the buff. Remove the tracker if one exists.
+
+						local control, controlKey = nil, nil
+						if UniversalTracker.targetIDs_Compact[targetUnitId] then
+							for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
+								if v and v.trackerID == settingsTable.id then
+									control = UniversalTracker.compactPool:AcquireObject(v.key)
+									controlKey = v.key
+									break
+								end
+							end
+						end
+						
+						if control and controlKey then
+							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+							for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
+								if v.trackerID == settingsTable.id then
+									table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
+									if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
+									break
+								end
+							end
+							for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
+								if v.object == control then
+									table.remove(UniversalTracker.Controls[settingsTable.id], k)
+									break
+								end
+							end
+							UniversalTracker.compactPool:ReleaseObject(controlKey)
+							UpdateListAnchors(settingsTable)		
+						end
+					else
+						--Look for an existing tracker.
+						local control, controlKey = nil, nil
+						if UniversalTracker.targetIDs_Compact[targetUnitId] then
+							for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
+								if v and v.trackerID == settingsTable.id then
+									control = UniversalTracker.compactPool:AcquireObject(v.key)
+									break
+								end
+							end
+						end
+
+						if(not control) then
+							--Initialize a new tracker and add it to the list.
+							control, controlKey = UniversalTracker.compactPool:AcquireObject()
+							
+							--Settings
+							--A bit redundant from the Init functions but its made to not use unitTags.
+							control:SetScale(settingsTable.scale)
+							control:SetHidden(settingsTable.hidden)
+							local textureControl = control:GetNamedChild("Texture")
+							local durationControl = control:GetNamedChild("Duration")
+							local stackControl = control:GetNamedChild("Stacks")
+							local unitNameControl = control:GetNamedChild("UnitName")
+
+							durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
+							durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
+							durationControl:SetScale(settingsTable.textSettings.duration.textScale)
+							durationControl:ClearAnchors()
+							durationControl:SetAnchor(CENTER, control, CENTER, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+							durationControl:SetText("")
+							
+							--We can't get any stack information from EVENT_COMBAT_EVENT, especially without a unitTag.
+							stackControl:SetHidden(true)
+
+							unitNameControl:SetHidden(settingsTable.textSettings.unitLabel.hidden)
+							unitNameControl:SetColor(settingsTable.textSettings.unitLabel.color.r, settingsTable.textSettings.unitLabel.color.g, settingsTable.textSettings.unitLabel.color.b, settingsTable.textSettings.unitLabel.color.a)
+							unitNameControl:SetScale(settingsTable.textSettings.unitLabel.textScale)
+							unitNameControl:ClearAnchors()
+							unitNameControl:SetAnchor(BOTTOM, control, TOP, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
+							unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, targetName))
+
+							if settingsTable.overrideTexturePath == "" then
+								textureControl:SetTexture(GetAbilityIcon(abilityId))
+							else
+								textureControl:SetTexture(settingsTable.overrideTexturePath)
+							end
+							
+							--Update tables
+							if(not UniversalTracker.targetIDs_Compact[targetUnitId]) then UniversalTracker.targetIDs_Compact[targetUnitId] = {} end
+							table.insert(UniversalTracker.targetIDs_Compact[targetUnitId], {key = controlKey, trackerID = settingsTable.id})
+
+							table.insert(UniversalTracker.Controls[settingsTable.id], {object = control, key = controlKey, unitTag = "reticleover"})
+							UpdateListAnchors(settingsTable)
+						else
+							if settingsTable.overrideTexturePath == "" then
+								control:GetNamedChild("Texture"):SetTexture(GetAbilityIcon(abilityId))
+							else
+								control:GetNamedChild("Texture"):SetTexture(settingsTable.overrideTexturePath)
+							end
+						end
+							
+						local endTime = GetGameTimeMilliseconds() + hitValue
+						local durationControl = control:GetNamedChild("Duration")
+						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
+							local duration = (endTime-GetGameTimeMilliseconds())/1000
+							if duration < 0 then
+								--Effect Expired
+								durationControl:SetText("")
+								EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+								zo_callLater(function()
+									if durationControl:GetText() == "" then
+										--Try to release objects.
+										--Objects might already have been released if someone else reapplied the buff early.
+										if not UniversalTracker.targetIDs_Compact[targetUnitId] then return end
+
+										for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
+											if v.trackerID == settingsTable.id then
+												table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
+												if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
+												break
+											end
+										end
+										for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
+											if v.object == control then
+												table.remove(UniversalTracker.Controls[settingsTable.id], k)
+												break
+											end
+										end
+										UniversalTracker.compactPool:ReleaseObject(controlKey)
+										UpdateListAnchors(settingsTable)
+									end
+								end, 500)
+							else
+								if duration < 2 then
+									durationControl:SetText(zo_roundToNearest(duration, 0.1))
+								else
+									durationControl:SetText(zo_roundToZero(duration))
+								end
+							end
+						end)
+					end
+				end
+			end)
+		elseif settingsTable.type == "Bar" then
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT, function(_, result, _, _, _, _, _, sourceType, targetName, _, hitValue, _,  _, _, _, targetUnitId, abilityId, _)
+				if settingsTable.hashedAbilityIDs[abilityId] and hitValue ~= 1 and 
+					(result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION) then
+					if (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
+						--Someone else applied the buff. 
+						--Remove the tracker by playing the animation instantly to end and letting the onStop function do cleanup.
+
+						local animation = nil
+						if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
+							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
+								if v and v.trackerID == settingsTable.id then
+									animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
+									break
+								end
+							end
+						end
+
+						if animation then animation:PlayInstantlyToEnd() end
+					else
+						--Look for an existing tracker.
+						local control, controlKey, animation, animationKey = nil, nil, nil, nil
+						if UniversalTracker.targetIDs_Bar[targetUnitId] then
+							for k, v in pairs(UniversalTracker.targetIDs_Bar[targetUnitId]) do
+								if v and v.trackerID == settingsTable.id then
+									control = UniversalTracker.barPool:AcquireObject(v.key)
+									break
+								end
+							end
+						end
+						if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
+							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
+								if v and v.trackerID == settingsTable.id then
+									animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
+									break
+								end
+							end
+						end
+
+						if(not control or not animation) then
+							--Initialize a new tracker and add it to the list.
+							control, controlKey = UniversalTracker.barPool:AcquireObject()
+							animation, animationKey = UniversalTracker.barAnimationPool:AcquireObject()
+							
+							--Settings
+							--A bit redundant from the Init functions but its made to not use unitTags.
+							control:SetScale(settingsTable.scale)
+							control:SetHidden(settingsTable.hidden)
+
+							local textureControl = control:GetNamedChild("Texture")
+							local barControl = control:GetNamedChild("Bar")
+							local abilityNameControl = barControl:GetNamedChild("AbilityName")
+							local unitNameControl = barControl:GetNamedChild("UnitName")
+							local durationControl = barControl:GetNamedChild("Duration")
+
+							for i = 1, animation:GetNumAnimations() do
+								animation:GetAnimation(i):SetAnimatedControl(barControl)
+							end
+
+							durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
+							durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
+							durationControl:SetScale(settingsTable.textSettings.duration.textScale)
+							durationControl:ClearAnchors()
+							durationControl:SetAnchor(RIGHT, barControl:GetNamedChild("Background"), RIGHT, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+
+							abilityNameControl:SetHidden(settingsTable.textSettings.abilityLabel.hidden)
+							abilityNameControl:SetColor(settingsTable.textSettings.abilityLabel.color.r, settingsTable.textSettings.abilityLabel.color.g, settingsTable.textSettings.abilityLabel.color.b, settingsTable.textSettings.abilityLabel.color.a)
+							abilityNameControl:SetScale(settingsTable.textSettings.abilityLabel.textScale)
+							abilityNameControl:ClearAnchors()
+							abilityNameControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.abilityLabel.x, settingsTable.textSettings.abilityLabel.y)
+							abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(abilityId)))
+
+							unitNameControl:SetHidden(settingsTable.textSettings.unitLabel.hidden)
+							unitNameControl:SetColor(settingsTable.textSettings.unitLabel.color.r, settingsTable.textSettings.unitLabel.color.g, settingsTable.textSettings.unitLabel.color.b, settingsTable.textSettings.unitLabel.color.a)
+							unitNameControl:SetScale(settingsTable.textSettings.unitLabel.textScale)
+							unitNameControl:ClearAnchors()
+							unitNameControl:SetAnchor(BOTTOMLEFT, barControl:GetNamedChild("Background"), TOPLEFT, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
+							unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, targetName))
+
+							barControl:SetValue(0)
+							durationControl:SetText("0")
+
+							if settingsTable.overrideTexturePath == "" then
+								textureControl:SetTexture(GetAbilityIcon(abilityId))
+							else
+								textureControl:SetTexture(settingsTable.overrideTexturePath)
+							end
+							
+							--Update tables
+							if(not UniversalTracker.targetIDs_BarAnimation[targetUnitId]) then UniversalTracker.targetIDs_BarAnimation[targetUnitId] = {} end
+							if(not UniversalTracker.targetIDs_Bar[targetUnitId]) then UniversalTracker.targetIDs_Bar[targetUnitId] = {} end
+							table.insert(UniversalTracker.targetIDs_BarAnimation[targetUnitId], {key = animationKey, trackerID = settingsTable.id})
+							table.insert(UniversalTracker.targetIDs_Bar[targetUnitId], {key = controlKey, trackerID = settingsTable.id})
+
+							table.insert(UniversalTracker.Animations[settingsTable.id], {object = animation, key = animationKey})
+							table.insert(UniversalTracker.Controls[settingsTable.id], {object = control, key = controlKey, unitTag = "reticleover"})
+							UpdateListAnchors(settingsTable)
+						else
+							control:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetText(GetAbilityName(abilityId))
+							if settingsTable.overrideTexturePath == "" then
+								control:GetNamedChild("Texture"):SetTexture(GetAbilityIcon(abilityId))
+							else
+								control:GetNamedChild("Texture"):SetTexture(settingsTable.overrideTexturePath)
+							end
+						end
+							
+						--Remove from list if it is still inactive 500 ms after ending.
+						animation:GetAnimation(1):SetHandler("OnStop", function()
+							zo_callLater(function()
+								if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
+									--Try to release objects.
+									--Objects might already have been released if someone else reapplied the buff early.
+									if not UniversalTracker.targetIDs_BarAnimation[targetUnitId] then return end
+
+									for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
+										if v.trackerID == settingsTable.id then
+											animationKey = v.key
+											table.remove(UniversalTracker.targetIDs_BarAnimation[targetUnitId], k)
+											if #UniversalTracker.targetIDs_BarAnimation[targetUnitId] == 0 then UniversalTracker.targetIDs_BarAnimation[targetUnitId] = nil end
+											break
+										end
+									end
+									for k, v in pairs(UniversalTracker.targetIDs_Bar[targetUnitId]) do
+										if v.trackerID == settingsTable.id then
+											controlKey = v.key
+											table.remove(UniversalTracker.targetIDs_Bar[targetUnitId], k)
+											if #UniversalTracker.targetIDs_Bar[targetUnitId] == 0 then UniversalTracker.targetIDs_Bar[targetUnitId] = nil end
+											break
+										end
+									end
+									for k, v in pairs(UniversalTracker.Animations[settingsTable.id]) do
+										if v.object == animation then
+											table.remove(UniversalTracker.Animations[settingsTable.id], k)
+											break
+										end
+									end
+									for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
+										if v.object == control then
+											table.remove(UniversalTracker.Controls[settingsTable.id], k)
+											break
+										end
+									end
+									UniversalTracker.barPool:ReleaseObject(controlKey)
+									UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
+									UpdateListAnchors(settingsTable)
+								end
+							end, 500)
+						end)
+
+						--Start countdown animation
+						for i = 1, animation:GetNumAnimations() do
+							animation:GetAnimation(i):SetDuration(hitValue)
+						end
+						animation:PlayFromStart()
+					end
+				end
+			end)
 		end
 	end
 end
@@ -920,12 +1241,12 @@ function UniversalTracker.Initialize()
 	HUD_FRAGMENT:RegisterCallback("StateChange", fragmentChange)
 
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
-		if not UniversalTracker.unitIDs[unitID] and (tag == "player" or string.find(tag, "group") or string.find(tag, "boss")) then
+		if (not UniversalTracker.unitIDs[unitID] and (tag == "player" or string.find(tag, "group") or string.find(tag, "boss"))) or tag == "reticleover" then
 			UniversalTracker.unitIDs[unitID] = tag
 			if tag ~= "player" and GetUnitName(tag) == GetUnitName("player") then
 				UniversalTracker.altPlayerTag = tag
 			end
-		end  
+		end
 	end)
 	local function resetIDList() 
 		UniversalTracker.unitIDs = {} 
