@@ -1039,6 +1039,10 @@ function UniversalTracker.InitSettings()
 					This action cannot be undone.",
 		clickHandler = function(control)
 
+			--Unregister potential "All" trackers.
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..newTracker.id, EVENT_COMBAT_EVENT) 
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..newTracker.id, EVENT_EFFECT_CHANGED)
+
 			if UniversalTracker.Controls[newTracker.id].object then
 				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.Controls[newTracker.id].object:GetName())
 				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks") then
@@ -1239,9 +1243,9 @@ function UniversalTracker.InitSettings()
 			else
 				newTracker.overrideTexturePath = value
 			end
-			if UniversalTracker.Controls[newTracker.id].object then
+			if UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id].object then
 				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
+			elseif UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
 				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
 			end
 			temporarilyShowControl(editIndex)
@@ -2079,6 +2083,34 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
+	local tauntPreset = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "TAUNT",
+		buttonText = "LOAD",
+		tooltip = "Copies a taunt preset into the target save location.",
+		clickHandler = function(control)
+			local index = getNextAvailableIndex(isCharacterSettings)
+
+			if not isCharacterSettings then
+				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.taunt)
+				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
+				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
+			else
+				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.taunt)
+				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
+				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
+			end
+			
+			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+			messageParams:SetText("Loaded taunt preset.")
+			messageParams:SetLifespanMS(1500)
+			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+		end
+	}
+
 	local staggerPreset = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "STAGGER",
@@ -2341,7 +2373,7 @@ function UniversalTracker.InitSettings()
 														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, trackerCancelButton, trackerSaveButton}
 	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, debugSpam,
-									presetLabel, setNewTrackerSaveType, offBalancePreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
+									presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
 									navLabel, returnToMainMenuButton}
 
 	settings:AddSettings(settingPages.mainMenu)

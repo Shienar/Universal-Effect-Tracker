@@ -63,7 +63,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "39077",
             [2] = "45902",
             [3] = "2727",
@@ -108,6 +108,80 @@ UniversalTracker.presets = {
             [45834] = true,
             [137312] = true,
             [134599] = true,
+        },
+        overrideTexturePath = "",
+        x = 0,
+        y = 0,
+        scale = 1,
+        hidden = false,
+    },
+    taunt = {
+	    id = -1,
+        name = "Taunt Preset",
+        type = "Bar",
+        targetType = "All",
+	    appliedBySelf = true,
+        listSettings = {
+            columns = 1,
+            horizontalOffsetScale = 1,
+            verticalOffsetScale = 1,
+        },
+        textSettings = {
+            duration = {
+                color = {
+                    r = 1,
+                    g = 1,
+                    b = 1,
+                    a = 1,
+                },
+                textScale = 1,
+                x = -5,
+                y = 0,
+                hidden = false,
+            },
+            stacks = {
+                color = {
+                    r = 1,
+                    g = 1,
+                    b = 1,
+                    a = 1,
+                },
+                textScale = 1,
+                x = -5,
+                y = 0,
+                hidden = false,
+            },
+            abilityLabel = {
+                color = {
+                    r = 1,
+                    g = 1,
+                    b = 1,
+                    a = 1,
+                },
+                textScale = 0.7,
+                x = 5,
+                y = 0,
+                hidden = false,
+            },
+            unitLabel = {
+                color = {
+                    r = 1,
+                    g = 1,
+                    b = 1,
+                    a = 1,
+                },
+                textScale = 1,
+                x = 5,
+                y = 0,
+                hidden = false,
+		    	accountName = true,
+            },
+        },
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
+            [1] = "38254",
+        },
+        hashedAbilityIDs = { --abilityIDs are keys
+            [38254] = true,
         },
         overrideTexturePath = "",
         x = 0,
@@ -177,7 +251,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "134336", -- stagger (target)
             [2] = "31816", -- stone giant (self)
         },
@@ -254,7 +328,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "122587",
         },
         hashedAbilityIDs = { --abilityIDs are keys
@@ -328,7 +402,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "122586",
         },
         hashedAbilityIDs = { --abilityIDs are keys
@@ -402,7 +476,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "76667",
             [2] = "75753",
         },
@@ -478,7 +552,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "127070",
         },
         hashedAbilityIDs = { --abilityIDs are keys
@@ -552,7 +626,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "142653",
         },
         hashedAbilityIDs = { --abilityIDs are keys
@@ -626,7 +700,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "142610",
         },
         hashedAbilityIDs = { --abilityIDs are keys
@@ -700,7 +774,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "142652",
         },
         hashedAbilityIDs = { --abilityIDs are keys
@@ -774,7 +848,7 @@ UniversalTracker.presets = {
 		    	accountName = true,
             },
         },
-        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 0. Each setting gets an index.
+        abilityIDs = { --abilityIDs are values. indexes increase by 1 from 1. Each setting gets an index.
             [1] = "48052",
             [2] = "85434",
             [3] = "63512",
