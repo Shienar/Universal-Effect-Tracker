@@ -1,9 +1,6 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
 
--- TODO: EVENT_EFFECT_CHANGED for stack management. Helps with reapplying debuffs.
--- 
-
 UniversalTracker.defaults = {
 	nextID = 0,
 	nextSetupID = 0,
@@ -37,13 +34,76 @@ UniversalTracker.targetIDs_Compact = {}
 UniversalTracker.targetIDs_Bar = {}
 UniversalTracker.targetIDs_BarAnimation = {}
 
+
+-- Clears and updates all anchors in the list.
+-- Assumes controls have been acquired from pools and initialized.
+local function UpdateListAnchors(settingsTable)
+	-- Only works on lists
+	if not (UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1]) then return end
+
+	local columns = {
+		[0] = {},
+		[1] = {},
+		[2] = {}
+	}
+
+	--populate columns with lists of controls.
+	local nextColumnIndex = 0
+	for i = 1, #UniversalTracker.Controls[settingsTable.id] do
+		local control = UniversalTracker.Controls[settingsTable.id][i].object
+		if control and not (settingsTable.hideInactive and control:IsHidden()) then
+			columns[nextColumnIndex][#columns[nextColumnIndex] + 1] = control
+			nextColumnIndex = (nextColumnIndex + 1)%settingsTable.listSettings.columns
+		end
+	end
+
+	local horizontalOffset = settingsTable.listSettings.horizontalOffsetScale * settingsTable.scale
+	local verticalOffset = settingsTable.listSettings.verticalOffsetScale * settingsTable.scale
+	if settingsTable.type == "Bar" then
+		horizontalOffset = horizontalOffset * 15
+		verticalOffset = verticalOffset * 25
+	elseif settingsTable.type == "Compact" then
+		horizontalOffset = horizontalOffset * 10
+		verticalOffset = verticalOffset * 15
+	end
+
+	-- Anchor column heads
+	if columns[0][1] then
+		columns[0][1]:ClearAnchors()
+		columns[0][1]:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
+	end
+	if columns[1][1] then
+		columns[1][1]:ClearAnchors()
+		columns[1][1]:SetAnchor(LEFT, columns[0][1], RIGHT, horizontalOffset, 0)
+	end
+	if columns[2][1] then
+		columns[2][1]:ClearAnchors()
+		columns[2][1]:SetAnchor(LEFT, columns[1][1], RIGHT, horizontalOffset, 0)
+	end
+
+	-- Anchor column children
+	for i = 2, #columns[0] do
+		columns[0][i]:ClearAnchors()
+		columns[0][i]:SetAnchor(TOPLEFT, columns[0][i-1], BOTTOMLEFT, 0, verticalOffset)
+	end
+	for i = 2, #columns[1] do
+		columns[1][i]:ClearAnchors()
+		columns[1][i]:SetAnchor(TOPLEFT, columns[1][i-1], BOTTOMLEFT, 0, verticalOffset)
+	end
+	for i = 2, #columns[2] do
+		columns[2][i]:ClearAnchors()
+		columns[2][i]:SetAnchor(TOPLEFT, columns[2][i-1], BOTTOMLEFT, 0, verticalOffset)
+	end
+end
+
 local function InitCompact(settingsTable, unitTag, control)
 	-- Assign values to created controls.
 
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
-	control:SetHidden(settingsTable.hidden)
+	if settingsTable.hideInactive then control:SetHidden(true) else control:SetHidden(settingsTable.hidden) end
+
 	local textureControl = control:GetNamedChild("Texture")
 	local durationControl = control:GetNamedChild("Duration")
 	local stackControl = control:GetNamedChild("Stacks")
@@ -80,57 +140,70 @@ local function InitCompact(settingsTable, unitTag, control)
 		textureControl:SetTexture(settingsTable.overrideTexturePath)
 	end
 
-		--check for current active effects.
-		if DoesUnitExist(unitTag) then
-			for i = 1, GetNumBuffs(unitTag) do
-				local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
-				if settingsTable.hashedAbilityIDs[abilityId] then
-					endTime = endTime*1000
-					if stacks == 0 then stacks = "" end
-					stackControl:SetText(stacks)
-					if settingsTable.overrideTexturePath == "" then
-						textureControl:SetTexture(GetAbilityIcon(abilityId))
-					else
-						textureControl:SetTexture(settingsTable.overrideTexturePath)
-					end
-					if not IsAbilityPermanent(abilityId) then
-						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
-							local duration = (endTime-GetGameTimeMilliseconds())/1000
-							if duration < 0 then
-								--Effect Expired
-								EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-								if settingsTable.overrideTexturePath == "" then
-									textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-								else
-									textureControl:SetTexture(settingsTable.overrideTexturePath)
-								end
-								durationControl:SetText("")
-								stackControl:SetText("")
-							else
-								if duration < 2 then
-									durationControl:SetText(zo_roundToNearest(duration, 0.1))
-								else
-									durationControl:SetText(zo_roundToZero(duration))
-								end
-							end
-						end)
-					end
-					break
+	--check for current active effects.
+	if DoesUnitExist(unitTag) then
+		for i = 1, GetNumBuffs(unitTag) do
+			local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
+			if settingsTable.hashedAbilityIDs[abilityId] then
+				if settingsTable.hideInactive and not settingsTable.hidden then 
+					control:SetHidden(false) 
+					UpdateListAnchors(settingsTable)
 				end
+				endTime = endTime*1000
+				if stacks == 0 then stacks = "" end
+				stackControl:SetText(stacks)
+				if settingsTable.overrideTexturePath == "" then
+					textureControl:SetTexture(GetAbilityIcon(abilityId))
+				else
+					textureControl:SetTexture(settingsTable.overrideTexturePath)
+				end
+				if not IsAbilityPermanent(abilityId) then
+					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
+						local duration = (endTime-GetGameTimeMilliseconds())/1000
+						if duration < 0 then
+							--Effect Expired
+							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+							if settingsTable.overrideTexturePath == "" then
+								textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
+							else
+								textureControl:SetTexture(settingsTable.overrideTexturePath)
+							end
+							durationControl:SetText("")
+							stackControl:SetText("")
+							if settingsTable.hideInactive and not settingsTable.hidden then 
+								control:SetHidden(true) 
+								UpdateListAnchors(settingsTable)
+							end
+						else
+							if duration < 2 then
+								durationControl:SetText(zo_roundToNearest(duration, 0.1))
+							else
+								durationControl:SetText(zo_roundToZero(duration))
+							end
+						end
+					end)
+				end
+				break
 			end
 		end
+	end
 
 	if unitTag == "reticleover" then
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED, function()
-			if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
-				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
-			elseif GetUnitName(unitTag) ~= "" then
-				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
-			end
 			if DoesUnitExist(unitTag) then
+				if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
+				elseif GetUnitName(unitTag) ~= "" then
+					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+				end
+
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, s, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
 					if settingsTable.hashedAbilityIDs[abilityId] then
+						if settingsTable.hideInactive and not settingsTable.hidden then 
+							control:SetHidden(false) 
+							UpdateListAnchors(settingsTable)
+						end
 						endTime = endTime*1000
 						if stacks == 0 then stacks = "" end
 						stackControl:SetText(stacks)
@@ -152,6 +225,10 @@ local function InitCompact(settingsTable, unitTag, control)
 									end
 									durationControl:SetText("")
 									stackControl:SetText("")
+									if settingsTable.hideInactive and not settingsTable.hidden then 
+										control:SetHidden(true) 
+										UpdateListAnchors(settingsTable)
+									end
 								else
 									if duration < 2 then
 										durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -174,6 +251,10 @@ local function InitCompact(settingsTable, unitTag, control)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
+				if settingsTable.hideInactive and not settingsTable.hidden then 
+					control:SetHidden(true) 
+					UpdateListAnchors(settingsTable)
+				end
 			end
 		end)
 	end
@@ -191,6 +272,11 @@ local function InitCompact(settingsTable, unitTag, control)
 			end
 
 			if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
+				if settingsTable.hideInactive and not settingsTable.hidden then 
+					control:SetHidden(false) 
+					UpdateListAnchors(settingsTable)
+				end
+				
 				-- Can't get stack information, assume no stacks.
 				stackControl:SetText("")
 
@@ -213,6 +299,10 @@ local function InitCompact(settingsTable, unitTag, control)
 						end
 						durationControl:SetText("")
 						stackControl:SetText("")
+						if settingsTable.hideInactive and not settingsTable.hidden then 
+							control:SetHidden(true) 
+							UpdateListAnchors(settingsTable)
+						end
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -246,6 +336,10 @@ local function InitCompact(settingsTable, unitTag, control)
 			end
 			if changeType ~= EFFECT_RESULT_FADED and not IsAbilityPermanent(abilityID) then
 				endTime = endTime * 1000
+				if settingsTable.hideInactive and not settingsTable.hidden then 
+					control:SetHidden(false) 
+					UpdateListAnchors(settingsTable)
+				end
 				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 					local duration = (endTime-GetGameTimeMilliseconds())/1000
 					if duration < 0 then
@@ -258,6 +352,10 @@ local function InitCompact(settingsTable, unitTag, control)
 						end
 						durationControl:SetText("")
 						stackControl:SetText("")
+						if settingsTable.hideInactive and not settingsTable.hidden then 
+							control:SetHidden(true) 
+							UpdateListAnchors(settingsTable)
+						end
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -274,6 +372,10 @@ local function InitCompact(settingsTable, unitTag, control)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
+				if settingsTable.hideInactive and not settingsTable.hidden then 
+					control:SetHidden(true) 
+					UpdateListAnchors(settingsTable)
+				end
 			end
 		end
 	end)
@@ -285,8 +387,8 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
-	control:SetHidden(settingsTable.hidden)
-
+	if settingsTable.hideInactive then control:SetHidden(true) else control:SetHidden(settingsTable.hidden) end
+	
 	local textureControl = control:GetNamedChild("Texture")
 	local barControl = control:GetNamedChild("Bar")
 	local abilityNameControl = barControl:GetNamedChild("AbilityName")
@@ -296,6 +398,21 @@ local function InitBar(settingsTable, unitTag, control, animation)
 	for i = 1, animation:GetNumAnimations() do
 		animation:GetAnimation(i):SetAnimatedControl(barControl)
 	end
+	
+	animation:GetAnimation(1):SetHandler("OnStop", function()
+		zo_callLater(function()
+			if settingsTable.hideInactive and not settingsTable.hidden and durationControl:GetText() == "0" then 
+				control:SetHidden(true) 
+				UpdateListAnchors(settingsTable)
+			end
+		end, 150)
+	end)
+	animation:GetAnimation(1):SetHandler("OnPlay", function()
+		if settingsTable.hideInactive and not settingsTable.hidden then 
+			control:SetHidden(false) 
+			UpdateListAnchors(settingsTable)
+		end
+	end)
 
 	durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
 	durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
@@ -393,6 +510,9 @@ local function InitBar(settingsTable, unitTag, control, animation)
 					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
 				end
 				animation:PlayInstantlyToEnd()
+				
+				--Bypass the 150ms wait animation.
+				if settingsTable.hideInactive and not settingsTable.hidden and durationControl:GetText() == "0" then control:SetHidden(true) end
 			end
 		end)
 	end
@@ -451,66 +571,6 @@ local function InitBar(settingsTable, unitTag, control, animation)
 		end
 	end)
 	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name.. control:GetName(), EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
-end
-
--- Clears and updates all anchors in the list.
--- Assumes controls have been acquired from pools and initialized.
-local function UpdateListAnchors(settingsTable)
-	-- Only works on lists
-	if not (UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1]) then return end
-
-	local columns = {
-		[0] = {},
-		[1] = {},
-		[2] = {}
-	}
-
-	--populate columns with lists of controls.
-	local nextColumnIndex = 0
-	for i = 1, #UniversalTracker.Controls[settingsTable.id] do
-		if UniversalTracker.Controls[settingsTable.id][i].object then
-			columns[nextColumnIndex][#columns[nextColumnIndex] + 1] = UniversalTracker.Controls[settingsTable.id][i].object
-			nextColumnIndex = (nextColumnIndex + 1)%settingsTable.listSettings.columns
-		end
-	end
-
-	local horizontalOffset = settingsTable.listSettings.horizontalOffsetScale * settingsTable.scale
-	local verticalOffset = settingsTable.listSettings.verticalOffsetScale * settingsTable.scale
-	if settingsTable.type == "Bar" then
-		horizontalOffset = horizontalOffset * 15
-		verticalOffset = verticalOffset * 25
-	elseif settingsTable.type == "Compact" then
-		horizontalOffset = horizontalOffset * 10
-		verticalOffset = verticalOffset * 15
-	end
-
-	-- Anchor column heads
-	if columns[0][1] then
-		columns[0][1]:ClearAnchors()
-		columns[0][1]:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
-	end
-	if columns[1][1] then
-		columns[1][1]:ClearAnchors()
-		columns[1][1]:SetAnchor(LEFT, columns[0][1], RIGHT, horizontalOffset, 0)
-	end
-	if columns[2][1] then
-		columns[2][1]:ClearAnchors()
-		columns[2][1]:SetAnchor(LEFT, columns[1][1], RIGHT, horizontalOffset, 0)
-	end
-
-	-- Anchor column children
-	for i = 2, #columns[0] do
-		columns[0][i]:ClearAnchors()
-		columns[0][i]:SetAnchor(TOPLEFT, columns[0][i-1], BOTTOMLEFT, 0, verticalOffset)
-	end
-	for i = 2, #columns[1] do
-		columns[1][i]:ClearAnchors()
-		columns[1][i]:SetAnchor(TOPLEFT, columns[1][i-1], BOTTOMLEFT, 0, verticalOffset)
-	end
-	for i = 2, #columns[2] do
-		columns[2][i]:ClearAnchors()
-		columns[2][i]:SetAnchor(TOPLEFT, columns[2][i-1], BOTTOMLEFT, 0, verticalOffset)
-	end
 end
 
 local function InitList(settingsTable, unitTag)
@@ -716,11 +776,32 @@ end
 
 function UniversalTracker.InitSingleDisplay(settingsTable)
 
-	--Unregister potential "All" trackers.
+	--Unregister and free existing trackers from this table.
 	if settingsTable.id then 
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT) 
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_EFFECT_CHANGED)
+
+		if UniversalTracker.Controls[settingsTable.id] then
+			if UniversalTracker.Controls[settingsTable.id][1] or 
+				not next(UniversalTracker.Controls[settingsTable.id]) -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
+			then 
+					UniversalTracker.freeLists(settingsTable)
+			end
+
+			if UniversalTracker.Controls[settingsTable.id].object then
+				if string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Bar") then
+					UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
+					UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				elseif string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Compact") then
+					UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
+				end
+			end
+		end
+		
+		UniversalTracker.Controls[settingsTable.id] = {}
+		UniversalTracker.Animations[settingsTable.id] = {}
 	end
+
 
 	local unitTag = nil
 	if settingsTable.targetType == "Player" then
@@ -735,71 +816,17 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	if unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Compact" then
-			if not UniversalTracker.Controls[settingsTable.id] then
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
-			elseif UniversalTracker.Controls[settingsTable.id][1] or --list
-					not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
-				UniversalTracker.freeLists(settingsTable)
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
-			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Bar") then
-				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
-				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
-			end
+			UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 
 			InitCompact(settingsTable, unitTag, UniversalTracker.Controls[settingsTable.id].object)
 		elseif settingsTable.type == "Bar" then
-			if not UniversalTracker.Controls[settingsTable.id] then
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Animations[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
-				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
-			elseif UniversalTracker.Controls[settingsTable.id][1] or --list
-					not next(UniversalTracker.Controls[settingsTable.id]) then -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
-				UniversalTracker.freeLists(settingsTable)
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Animations[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
-				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
-			elseif UniversalTracker.Controls[settingsTable.id].object and string.find(UniversalTracker.Controls[settingsTable.id].object:GetName(), "Compact") then
-				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-				UniversalTracker.Controls[settingsTable.id] = {}
-				UniversalTracker.Animations[settingsTable.id] = {}
-				UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
-				UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
-			end
+			UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.barPool:AcquireObject()
+			UniversalTracker.Animations[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].key = UniversalTracker.barAnimationPool:AcquireObject()
+
 			InitBar(settingsTable, unitTag, UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Animations[settingsTable.id].object)
 		end
 	elseif unitTag == "boss" or unitTag == "group" then
-
-		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id].object then
-			UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-			UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-		end
-		if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object then
-			UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
-		end
-
-		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1] and UniversalTracker.Controls[settingsTable.id][1].object then
-			--List is initialized.
-			--Is the initialized list of appropriate type?
-			if not string.find(UniversalTracker.Controls[settingsTable.id][1].object:GetName(), settingsTable.type) then
-				UniversalTracker.freeLists(settingsTable)
-				InitList(settingsTable, unitTag)
-			elseif not string.find(UniversalTracker.Controls[settingsTable.id][1].unitTag, unitTag) then
-				-- Is the initialized list of appropriate target type?
-				UniversalTracker.freeLists(settingsTable)
-				InitList(settingsTable, unitTag)
-			else
-				UniversalTracker.refreshList(settingsTable, unitTag)
-			end
-		else
-			--initialize current.
-			InitList(settingsTable, unitTag)
-		end
+		InitList(settingsTable, unitTag)
 
 		--register events.
 		EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, function() updateList(settingsTable, unitTag) end)
@@ -815,24 +842,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() updateList(settingsTable, unitTag) end)
 		end
 	elseif settingsTable.targetType == "All" then
-		--Free existing
-		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id][1] and (UniversalTracker.Controls[settingsTable.id][1].object or not next(UniversalTracker.Controls[settingsTable.id])) then --(potentially empty) list
-			UniversalTracker.freeLists(settingsTable)
-		else
-			if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id].object then
-				UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-				UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
-			end
-			if UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object then
-				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[settingsTable.id].key)
-			end
-		end
-
-		UniversalTracker.Controls[settingsTable.id] = {}
-		UniversalTracker.Animations[settingsTable.id] = {}
-
-		--EVENT_COMBAT_EVENT will handle cleanup on other people applying the buff. EVENT_EFFECT_CHANGED won't worry about it.
-
+		--EVENT_COMBAT_EVENT will handle cleanup on other people applying the buff.
+		--EVENT_EFFECT_CHANGED will handle the effect being purged.
 		if settingsTable.type == "Compact" then
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT, function(_, result, _, _, _, _, _, sourceType, targetName, _, hitValue, _,  _, _, _, targetUnitId, abilityId, _)
 				if result == ACTION_RESULT_DIED or result == ACTION_RESULT_DIED_XP then
@@ -977,30 +988,28 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 								--Effect Expired
 								durationControl:SetText("")
 								EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-								zo_callLater(function()
-									if durationControl:GetText() == "" then
-										--Try to release objects.
-										--Objects might already have been released if someone else reapplied the buff early.
-										if not UniversalTracker.targetIDs_Compact[targetUnitId] then return end
+								if durationControl:GetText() == "" then
+									--Try to release objects.
+									--Objects might already have been released if someone else reapplied the buff early.
+									if not UniversalTracker.targetIDs_Compact[targetUnitId] then return end
 
-										for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-											if v.trackerID == settingsTable.id then
-												table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
-												if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
-												break
-											end
+									for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
+										if v.trackerID == settingsTable.id then
+											table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
+											if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
+											break
 										end
-										for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
-											if v.object == control then
-												controlKey = v.key
-												table.remove(UniversalTracker.Controls[settingsTable.id], k)
-												break
-											end
-										end
-										UniversalTracker.compactPool:ReleaseObject(controlKey)
-										UpdateListAnchors(settingsTable)
 									end
-								end, 500)
+									for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
+										if v.object == control then
+											controlKey = v.key
+											table.remove(UniversalTracker.Controls[settingsTable.id], k)
+											break
+										end
+									end
+									UniversalTracker.compactPool:ReleaseObject(controlKey)
+									UpdateListAnchors(settingsTable)
+								end
 							else
 								if duration < 2 then
 									durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -1146,7 +1155,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 										UniversalTracker.compactPool:ReleaseObject(controlKey)
 										UpdateListAnchors(settingsTable)
 									end
-								end, 500)
+								end, 150)
 							else
 								if duration < 2 then
 									durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -1278,7 +1287,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end
 							
-						--Remove from list if it is still inactive 500 ms after ending.
+						--Remove from list if it is still inactive 150 ms after ending.
 						animation:GetAnimation(1):SetHandler("OnStop", function()
 							zo_callLater(function()
 								if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
@@ -1318,7 +1327,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 									UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
 									UpdateListAnchors(settingsTable)
 								end
-							end, 500)
+							end, 150)
 						end)
 
 						--Start countdown animation
@@ -1334,6 +1343,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				if settingsTable.hashedAbilityIDs[abilityID] then
 					if changeType == EFFECT_RESULT_FADED then
 						--Effect got cleansed early.
+
 						local animation = nil
 						if UniversalTracker.targetIDs_BarAnimation[unitID] then
 							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[unitID]) do
@@ -1346,6 +1356,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 						if animation then animation:PlayInstantlyToEnd() end
 					elseif not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
+
 						--Look for an existing tracker.
 						local control, controlKey, animation, animationKey = nil, nil, nil, nil
 						if UniversalTracker.targetIDs_Bar[unitID] then
@@ -1432,7 +1443,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end
 							
-						--Remove from list if it is still inactive 500 ms after ending.
+						--Remove from list if it is still inactive 150 ms after ending.
 						animation:GetAnimation(1):SetHandler("OnStop", function()
 							zo_callLater(function()
 								if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
@@ -1472,7 +1483,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 									UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
 									UpdateListAnchors(settingsTable)
 								end
-							end, 500)
+							end, 150)
 						end)
 
 						--Start countdown animation
@@ -1492,11 +1503,19 @@ local function fragmentChange(oldState, newState)
 		--unhide everything.
 		for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 			if UniversalTracker.Controls[v.id] then
-				if UniversalTracker.Controls[v.id].object then
+				if UniversalTracker.Controls[v.id].object and 
+					not (v.hideInactive and
+					((v.type == "Compact" and UniversalTracker.Controls[v.id].object:GetNamedChild("Duration"):GetText() == "") or
+	 				(v.type == "Bar" and UniversalTracker.Controls[v.id].object:GetNamedChild("Bar"):GetValue() == 0)))
+				then
 					UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
 				else
 					for i = 1, #UniversalTracker.Controls[v.id] do
-						if UniversalTracker.Controls[v.id][i].object then
+						if UniversalTracker.Controls[v.id][i].object and 
+							not (v.hideInactive and
+							((v.type == "Compact" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Duration"):GetText() == "") or
+							(v.type == "Bar" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Bar"):GetValue() == 0)))
+						then
 							UniversalTracker.Controls[v.id][i].object:SetHidden(v.hidden)
 						end
 					end
@@ -1505,11 +1524,19 @@ local function fragmentChange(oldState, newState)
 		end
 		for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 			if UniversalTracker.Controls[v.id] then
-				if UniversalTracker.Controls[v.id].object then
+				if UniversalTracker.Controls[v.id].object and 
+					not (v.hideInactive and
+					((v.type == "Compact" and UniversalTracker.Controls[v.id].object:GetNamedChild("Duration"):GetText() == "") or
+	 				(v.type == "Bar" and UniversalTracker.Controls[v.id].object:GetNamedChild("Bar"):GetValue() == 0)))
+				then
 					UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
 				else
 					for i = 1, #UniversalTracker.Controls[v.id] do
-						if UniversalTracker.Controls[v.id][i].object then
+						if UniversalTracker.Controls[v.id][i].object and 
+							not (v.hideInactive and
+							((v.type == "Compact" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Duration"):GetText() == "") or
+							(v.type == "Bar" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Bar"):GetValue() == 0)))
+						then
 							UniversalTracker.Controls[v.id][i].object:SetHidden(v.hidden)
 						end
 					end
