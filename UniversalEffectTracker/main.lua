@@ -22,7 +22,6 @@ UniversalTracker.defaultsCharacter = {
 }
 
 UniversalTracker.unitIDs = {}
-UniversalTracker.altPlayerTag = "" -- e.g. "group2" vs "player"
 
 -- A tracker's userdata objects are stored in these tables at index [id], not in the saved variables.
 UniversalTracker.Controls = {}
@@ -260,8 +259,7 @@ local function InitCompact(settingsTable, unitTag, control)
 	end
 	-- Track internal effects. (Thanks code65536 for making me aware of these)
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, sourceType, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-		if (unitTag == UniversalTracker.unitIDs[unitID] or
-			(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
+		if AreUnitsEqual(unitTag, UniversalTracker.unitIDs[unitID]) and
 			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) and 
 			settingsTable.hashedAbilityIDs[abilityID] then
 
@@ -519,8 +517,7 @@ local function InitBar(settingsTable, unitTag, control, animation)
 
 	-- Track internal effects. (Thanks code65536 for making me aware of these)
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT, function( _, result, _, _, _, _, _, sourceType, _, _, hitValue, _, _, _, _, unitID, abilityID, _)
-		if (unitTag == UniversalTracker.unitIDs[unitID] or 
-			(unitTag == "player" and UniversalTracker.unitIDs[unitID] == UniversalTracker.altPlayerTag)) and
+		if AreUnitsEqual(unitTag, UniversalTracker.unitIDs[unitID]) and
 			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) and
 			settingsTable.hashedAbilityIDs[abilityID] then
 
@@ -851,9 +848,12 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 					local control, controlKey = nil, nil
 					if UniversalTracker.targetIDs_Compact[targetUnitId] then
 						for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-							if v and v.trackerID == settingsTable.id then
+							if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 								control = UniversalTracker.compactPool:AcquireObject(v.key)
 								controlKey = v.key
+								
+								table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
+								if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
 								break
 							end
 						end
@@ -861,13 +861,6 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 					
 					if control and controlKey then
 						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-						for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-							if v.trackerID == settingsTable.id then
-								table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
-								if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
-								break
-							end
-						end
 						for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
 							if v.object == control then
 								table.remove(UniversalTracker.Controls[settingsTable.id], k)
@@ -875,7 +868,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end
 						UniversalTracker.compactPool:ReleaseObject(controlKey)
-						UpdateListAnchors(settingsTable)		
+						UpdateListAnchors(settingsTable)
 					end
 
 				elseif settingsTable.hashedAbilityIDs[abilityId] and hitValue ~= 1 and
@@ -887,9 +880,12 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local control, controlKey = nil, nil
 						if UniversalTracker.targetIDs_Compact[targetUnitId] then
 							for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 									control = UniversalTracker.compactPool:AcquireObject(v.key)
 									controlKey = v.key
+
+									table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
+									if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
 									break
 								end
 							end
@@ -897,13 +893,6 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						
 						if control and controlKey then
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-							for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-								if v.trackerID == settingsTable.id then
-									table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
-									if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
-									break
-								end
-							end
 							for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
 								if v.object == control then
 									table.remove(UniversalTracker.Controls[settingsTable.id], k)
@@ -918,7 +907,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local control, controlKey = nil, nil
 						if UniversalTracker.targetIDs_Compact[targetUnitId] then
 							for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 									control = UniversalTracker.compactPool:AcquireObject(v.key)
 									break
 								end
@@ -968,7 +957,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							
 							--Update tables
 							if(not UniversalTracker.targetIDs_Compact[targetUnitId]) then UniversalTracker.targetIDs_Compact[targetUnitId] = {} end
-							table.insert(UniversalTracker.targetIDs_Compact[targetUnitId], {key = controlKey, trackerID = settingsTable.id})
+							table.insert(UniversalTracker.targetIDs_Compact[targetUnitId], {key = controlKey, trackerID = settingsTable.id, abilityID = abilityId})
 
 							table.insert(UniversalTracker.Controls[settingsTable.id], {object = control, key = controlKey, unitTag = "reticleover"})
 							UpdateListAnchors(settingsTable)
@@ -994,7 +983,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 									if not UniversalTracker.targetIDs_Compact[targetUnitId] then return end
 
 									for k, v in pairs(UniversalTracker.targetIDs_Compact[targetUnitId]) do
-										if v.trackerID == settingsTable.id then
+										if v.trackerID == settingsTable.id and v.abilityID == abilityId then
 											table.remove(UniversalTracker.targetIDs_Compact[targetUnitId], k)
 											if #UniversalTracker.targetIDs_Compact[targetUnitId] == 0 then UniversalTracker.targetIDs_Compact[targetUnitId] = nil end
 											break
@@ -1029,9 +1018,12 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local control, controlKey = nil, nil
 						if UniversalTracker.targetIDs_Compact[unitID] then
 							for k, v in pairs(UniversalTracker.targetIDs_Compact[unitID]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityID then
 									control = UniversalTracker.compactPool:AcquireObject(v.key)
 									controlKey = v.key
+
+									table.remove(UniversalTracker.targetIDs_Compact[unitID], k)
+									if #UniversalTracker.targetIDs_Compact[unitID] == 0 then UniversalTracker.targetIDs_Compact[unitID] = nil end
 									break
 								end
 							end
@@ -1039,13 +1031,6 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						
 						if control and controlKey then
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-							for k, v in pairs(UniversalTracker.targetIDs_Compact[unitID]) do
-								if v.trackerID == settingsTable.id then
-									table.remove(UniversalTracker.targetIDs_Compact[unitID], k)
-									if #UniversalTracker.targetIDs_Compact[unitID] == 0 then UniversalTracker.targetIDs_Compact[unitID] = nil end
-									break
-								end
-							end
 							for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
 								if v.object == control then
 									table.remove(UniversalTracker.Controls[settingsTable.id], k)
@@ -1060,7 +1045,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local control, controlKey = nil, nil
 						if UniversalTracker.targetIDs_Compact[unitID] then
 							for k, v in pairs(UniversalTracker.targetIDs_Compact[unitID]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityID then
 									control = UniversalTracker.compactPool:AcquireObject(v.key)
 									break
 								end
@@ -1109,7 +1094,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							
 							--Update tables
 							if(not UniversalTracker.targetIDs_Compact[unitID]) then UniversalTracker.targetIDs_Compact[unitID] = {} end
-							table.insert(UniversalTracker.targetIDs_Compact[unitID], {key = controlKey, trackerID = settingsTable.id})
+							table.insert(UniversalTracker.targetIDs_Compact[unitID], {key = controlKey, trackerID = settingsTable.id, abilityID = abilityID})
 
 							table.insert(UniversalTracker.Controls[settingsTable.id], {object = control, key = controlKey, unitTag = "reticleover"})
 							UpdateListAnchors(settingsTable)
@@ -1139,7 +1124,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 										if not UniversalTracker.targetIDs_Compact[unitID] then return end
 
 										for k, v in pairs(UniversalTracker.targetIDs_Compact[unitID]) do
-											if v.trackerID == settingsTable.id then
+											if v.trackerID == settingsTable.id and v.abilityID == abilityID then
 												table.remove(UniversalTracker.targetIDs_Compact[unitID], k)
 												if #UniversalTracker.targetIDs_Compact[unitID] == 0 then UniversalTracker.targetIDs_Compact[unitID] = nil end
 												break
@@ -1174,7 +1159,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 					local animation = nil
 					if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
 						for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
-							if v and v.trackerID == settingsTable.id then
+							if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 								animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
 								break
 							end
@@ -1185,6 +1170,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 				elseif settingsTable.hashedAbilityIDs[abilityId] and hitValue ~= 1 and
 					(result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION) then
+
 					if (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 						--Someone else applied the buff. 
 						--Remove the tracker by playing the animation instantly to end and letting the onStop function do cleanup.
@@ -1192,7 +1178,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local animation = nil
 						if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
 							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 									animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
 									break
 								end
@@ -1205,7 +1191,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local control, controlKey, animation, animationKey = nil, nil, nil, nil
 						if UniversalTracker.targetIDs_Bar[targetUnitId] then
 							for k, v in pairs(UniversalTracker.targetIDs_Bar[targetUnitId]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 									control = UniversalTracker.barPool:AcquireObject(v.key)
 									break
 								end
@@ -1213,7 +1199,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						end
 						if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
 							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityId then
 									animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
 									break
 								end
@@ -1272,8 +1258,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							--Update tables
 							if(not UniversalTracker.targetIDs_BarAnimation[targetUnitId]) then UniversalTracker.targetIDs_BarAnimation[targetUnitId] = {} end
 							if(not UniversalTracker.targetIDs_Bar[targetUnitId]) then UniversalTracker.targetIDs_Bar[targetUnitId] = {} end
-							table.insert(UniversalTracker.targetIDs_BarAnimation[targetUnitId], {key = animationKey, trackerID = settingsTable.id})
-							table.insert(UniversalTracker.targetIDs_Bar[targetUnitId], {key = controlKey, trackerID = settingsTable.id})
+							table.insert(UniversalTracker.targetIDs_BarAnimation[targetUnitId], {key = animationKey, trackerID = settingsTable.id, abilityID = abilityId})
+							table.insert(UniversalTracker.targetIDs_Bar[targetUnitId], {key = controlKey, trackerID = settingsTable.id, abilityID = abilityId})
 
 							table.insert(UniversalTracker.Animations[settingsTable.id], {object = animation, key = animationKey})
 							table.insert(UniversalTracker.Controls[settingsTable.id], {object = control, key = controlKey, unitTag = "reticleover"})
@@ -1287,47 +1273,44 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end
 							
-						--Remove from list if it is still inactive 150 ms after ending.
+						--Remove from list if it is still inactive
 						animation:GetAnimation(1):SetHandler("OnStop", function()
-							zo_callLater(function()
-								if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
-									--Try to release objects.
-									--Objects might already have been released if someone else reapplied the buff early.
-									if not UniversalTracker.targetIDs_BarAnimation[targetUnitId] then return end
+							if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
+								--Try to release objects.
+								if not UniversalTracker.targetIDs_BarAnimation[targetUnitId] then return end
 
-									for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
-										if v.trackerID == settingsTable.id then
-											animationKey = v.key
-											table.remove(UniversalTracker.targetIDs_BarAnimation[targetUnitId], k)
-											if #UniversalTracker.targetIDs_BarAnimation[targetUnitId] == 0 then UniversalTracker.targetIDs_BarAnimation[targetUnitId] = nil end
-											break
-										end
+								for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[targetUnitId]) do
+									if v.trackerID == settingsTable.id and v.abilityID == abilityId then
+										animationKey = v.key
+										table.remove(UniversalTracker.targetIDs_BarAnimation[targetUnitId], k)
+										if #UniversalTracker.targetIDs_BarAnimation[targetUnitId] == 0 then UniversalTracker.targetIDs_BarAnimation[targetUnitId] = nil end
+										break
 									end
-									for k, v in pairs(UniversalTracker.targetIDs_Bar[targetUnitId]) do
-										if v.trackerID == settingsTable.id then
-											controlKey = v.key
-											table.remove(UniversalTracker.targetIDs_Bar[targetUnitId], k)
-											if #UniversalTracker.targetIDs_Bar[targetUnitId] == 0 then UniversalTracker.targetIDs_Bar[targetUnitId] = nil end
-											break
-										end
-									end
-									for k, v in pairs(UniversalTracker.Animations[settingsTable.id]) do
-										if v.object == animation then
-											table.remove(UniversalTracker.Animations[settingsTable.id], k)
-											break
-										end
-									end
-									for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
-										if v.object == control then
-											table.remove(UniversalTracker.Controls[settingsTable.id], k)
-											break
-										end
-									end
-									UniversalTracker.barPool:ReleaseObject(controlKey)
-									UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
-									UpdateListAnchors(settingsTable)
 								end
-							end, 150)
+								for k, v in pairs(UniversalTracker.targetIDs_Bar[targetUnitId]) do
+									if v.trackerID == settingsTable.id and v.abilityID == abilityId then
+										controlKey = v.key
+										table.remove(UniversalTracker.targetIDs_Bar[targetUnitId], k)
+										if #UniversalTracker.targetIDs_Bar[targetUnitId] == 0 then UniversalTracker.targetIDs_Bar[targetUnitId] = nil end
+										break
+									end
+								end
+								for k, v in pairs(UniversalTracker.Animations[settingsTable.id]) do
+									if v.object == animation then
+										table.remove(UniversalTracker.Animations[settingsTable.id], k)
+										break
+									end
+								end
+								for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
+									if v.object == control then
+										table.remove(UniversalTracker.Controls[settingsTable.id], k)
+										break
+									end
+								end
+								UniversalTracker.barPool:ReleaseObject(controlKey)
+								UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
+								UpdateListAnchors(settingsTable)
+							end
 						end)
 
 						--Start countdown animation
@@ -1347,7 +1330,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local animation = nil
 						if UniversalTracker.targetIDs_BarAnimation[unitID] then
 							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[unitID]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityID then
 									animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
 									break
 								end
@@ -1361,7 +1344,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						local control, controlKey, animation, animationKey = nil, nil, nil, nil
 						if UniversalTracker.targetIDs_Bar[unitID] then
 							for k, v in pairs(UniversalTracker.targetIDs_Bar[unitID]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityID then
 									control = UniversalTracker.barPool:AcquireObject(v.key)
 									break
 								end
@@ -1369,7 +1352,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 						end
 						if UniversalTracker.targetIDs_BarAnimation[unitID] then
 							for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[unitID]) do
-								if v and v.trackerID == settingsTable.id then
+								if v and v.trackerID == settingsTable.id and v.abilityID == abilityID then
 									animation = UniversalTracker.barAnimationPool:AcquireObject(v.key)
 									break
 								end
@@ -1428,8 +1411,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							--Update tables
 							if(not UniversalTracker.targetIDs_BarAnimation[unitID]) then UniversalTracker.targetIDs_BarAnimation[unitID] = {} end
 							if(not UniversalTracker.targetIDs_Bar[unitID]) then UniversalTracker.targetIDs_Bar[unitID] = {} end
-							table.insert(UniversalTracker.targetIDs_BarAnimation[unitID], {key = animationKey, trackerID = settingsTable.id})
-							table.insert(UniversalTracker.targetIDs_Bar[unitID], {key = controlKey, trackerID = settingsTable.id})
+							table.insert(UniversalTracker.targetIDs_BarAnimation[unitID], {key = animationKey, trackerID = settingsTable.id, abilityID = abilityID})
+							table.insert(UniversalTracker.targetIDs_Bar[unitID], {key = controlKey, trackerID = settingsTable.id, abilityID = abilityID})
 
 							table.insert(UniversalTracker.Animations[settingsTable.id], {object = animation, key = animationKey})
 							table.insert(UniversalTracker.Controls[settingsTable.id], {object = control, key = controlKey, unitTag = "reticleover"})
@@ -1443,47 +1426,45 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end
 							
-						--Remove from list if it is still inactive 150 ms after ending.
+						--Remove from list if it is still inactive
 						animation:GetAnimation(1):SetHandler("OnStop", function()
-							zo_callLater(function()
-								if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
-									--Try to release objects.
-									--Objects might already have been released if someone else reapplied the buff early.
-									if not UniversalTracker.targetIDs_BarAnimation[unitID] then return end
+							if control:GetNamedChild("Bar"):GetNamedChild("Duration"):GetText() == "0" then
+								--Try to release objects.
+								--Objects might already have been released if someone else reapplied the buff early.
+								if not UniversalTracker.targetIDs_BarAnimation[unitID] then return end
 
-									for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[unitID]) do
-										if v.trackerID == settingsTable.id then
-											animationKey = v.key
-											table.remove(UniversalTracker.targetIDs_BarAnimation[unitID], k)
-											if #UniversalTracker.targetIDs_BarAnimation[unitID] == 0 then UniversalTracker.targetIDs_BarAnimation[unitID] = nil end
-											break
-										end
+								for k, v in pairs(UniversalTracker.targetIDs_BarAnimation[unitID]) do
+									if v.trackerID == settingsTable.id and v.abilityID == abilityID then
+										animationKey = v.key
+										table.remove(UniversalTracker.targetIDs_BarAnimation[unitID], k)
+										if #UniversalTracker.targetIDs_BarAnimation[unitID] == 0 then UniversalTracker.targetIDs_BarAnimation[unitID] = nil end
+										break
 									end
-									for k, v in pairs(UniversalTracker.targetIDs_Bar[unitID]) do
-										if v.trackerID == settingsTable.id then
-											controlKey = v.key
-											table.remove(UniversalTracker.targetIDs_Bar[unitID], k)
-											if #UniversalTracker.targetIDs_Bar[unitID] == 0 then UniversalTracker.targetIDs_Bar[unitID] = nil end
-											break
-										end
-									end
-									for k, v in pairs(UniversalTracker.Animations[settingsTable.id]) do
-										if v.object == animation then
-											table.remove(UniversalTracker.Animations[settingsTable.id], k)
-											break
-										end
-									end
-									for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
-										if v.object == control then
-											table.remove(UniversalTracker.Controls[settingsTable.id], k)
-											break
-										end
-									end
-									UniversalTracker.barPool:ReleaseObject(controlKey)
-									UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
-									UpdateListAnchors(settingsTable)
 								end
-							end, 150)
+								for k, v in pairs(UniversalTracker.targetIDs_Bar[unitID]) do
+									if v.trackerID == settingsTable.id and v.abilityID == abilityID then
+										controlKey = v.key
+										table.remove(UniversalTracker.targetIDs_Bar[unitID], k)
+										if #UniversalTracker.targetIDs_Bar[unitID] == 0 then UniversalTracker.targetIDs_Bar[unitID] = nil end
+										break
+									end
+								end
+								for k, v in pairs(UniversalTracker.Animations[settingsTable.id]) do
+									if v.object == animation then
+										table.remove(UniversalTracker.Animations[settingsTable.id], k)
+										break
+									end
+								end
+								for k, v in pairs(UniversalTracker.Controls[settingsTable.id]) do
+									if v.object == control then
+										table.remove(UniversalTracker.Controls[settingsTable.id], k)
+										break
+									end
+								end
+								UniversalTracker.barPool:ReleaseObject(controlKey)
+								UniversalTracker.barAnimationPool:ReleaseObject(animationKey)
+								UpdateListAnchors(settingsTable)
+							end
 						end)
 
 						--Start countdown animation
@@ -1625,16 +1606,12 @@ function UniversalTracker.Initialize()
 	HUD_FRAGMENT:RegisterCallback("StateChange", fragmentChange)
 
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
-		if (not UniversalTracker.unitIDs[unitID] and (tag == "player" or string.find(tag, "group") or string.find(tag, "boss"))) or tag == "reticleover" then
+		if tag == "reticleover" or not UniversalTracker.unitIDs[unitID] then
 			UniversalTracker.unitIDs[unitID] = tag
-			if tag ~= "player" and GetUnitName(tag) == GetUnitName("player") then
-				UniversalTracker.altPlayerTag = tag
-			end
 		end
 	end)
 	local function resetIDList() 
-		UniversalTracker.unitIDs = {} 
-		UniversalTracker.altPlayerTag = ""
+		UniversalTracker.unitIDs = {}
 	end
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_GROUP_MEMBER_JOINED, resetIDList)
