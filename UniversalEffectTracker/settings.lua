@@ -28,6 +28,7 @@ local newTracker = {
 	},
 	textSettings = {
 		duration = {
+			overrideDuration = "",
 			color = {
 				r = 1,
 				g = 1,
@@ -671,6 +672,7 @@ function UniversalTracker.InitSettings()
 				},
 				textSettings = {
 					duration = {
+						overrideDuration = "",
 						color = {
 							r = 1,
 							g = 1,
@@ -1004,7 +1006,6 @@ function UniversalTracker.InitSettings()
 					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				end
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-				temporarilyShowControl(index)
 				if not UniversalTracker.characterSavedVariables.trackerList[index].hidden then temporarilyShowControl(index) end
 			end
 			
@@ -1506,6 +1507,20 @@ function UniversalTracker.InitSettings()
 			temporarilyShowControl(editIndex)
 		end,
 		default = newTracker.textSettings.duration.hidden
+	}
+
+	local durationOverride = {
+		type = LibHarvensAddonSettings.ST_EDIT,
+		label = "Duration Override",
+		tooltip = "Override the ability's duration with this value (in seconds).\n\n\
+					The tracker will no longer listen for faded effects (e.g. from cleanses, unit deaths, or other people applying the buff) if this is set.",
+		textType = TEXT_TYPE_NUMERIC,
+		maxChars = 9,
+		getFunction = function() return newTracker.textSettings.duration.overrideDuration or "" end,
+		setFunction = function(value) 
+			newTracker.textSettings.duration.overrideDuration = value
+		end,
+		default = newTracker.textSettings.duration.overrideDuration or ""
 	}
 
 	local durationFontColor = {
@@ -2382,7 +2397,7 @@ function UniversalTracker.InitSettings()
 	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, appliedBySelf, hideInactive, hideTracker,
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, 
 									positionLabel, newScale, newXOffset, newYOffset,
-									textSettingsLabel, durationLabel, hideDuration, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
+									textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
 														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, trackerCancelButton, trackerSaveButton}

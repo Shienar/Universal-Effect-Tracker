@@ -142,11 +142,14 @@ local function InitCompact(settingsTable, unitTag, control)
 	--check for current active effects.
 	if DoesUnitExist(unitTag) then
 		for i = 1, GetNumBuffs(unitTag) do
-			local _, _, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
+			local _, startTime, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
 			if settingsTable.hashedAbilityIDs[abilityId] then
 				if settingsTable.hideInactive and not settingsTable.hidden then 
 					control:SetHidden(false) 
 					UpdateListAnchors(settingsTable)
+				end
+				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
 				end
 				endTime = endTime*1000
 				if stacks == 0 then stacks = "" end
@@ -197,11 +200,14 @@ local function InitCompact(settingsTable, unitTag, control)
 				end
 
 				for i = 1, GetNumBuffs(unitTag) do
-					local _, s, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
+					local _, startTime, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
 					if settingsTable.hashedAbilityIDs[abilityId] then
 						if settingsTable.hideInactive and not settingsTable.hidden then 
 							control:SetHidden(false) 
 							UpdateListAnchors(settingsTable)
+						end
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+							endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
 						end
 						endTime = endTime*1000
 						if stacks == 0 then stacks = "" end
@@ -284,7 +290,12 @@ local function InitCompact(settingsTable, unitTag, control)
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 
-				local endTime = GetGameTimeMilliseconds() + hitValue
+				local endTime
+				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+					endTime = GetGameTimeMilliseconds() + (1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
+				else
+					endTime = GetGameTimeMilliseconds() + hitValue
+				end
 				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 					local duration = (endTime-GetGameTimeMilliseconds())/1000
 					if duration < 0 then
@@ -317,8 +328,10 @@ local function InitCompact(settingsTable, unitTag, control)
 		if settingsTable.hashedAbilityIDs[abilityID] and
 			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 
-			--if faded with others running then return.
 			if changeType == EFFECT_RESULT_FADED then
+				if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
+
+				--if faded with others running then return.
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, _, endTime, _, stacks, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i)
 					if settingsTable.hashedAbilityIDs[buffID] and abilityID ~= buffID then return end
@@ -333,6 +346,9 @@ local function InitCompact(settingsTable, unitTag, control)
 				textureControl:SetTexture(settingsTable.overrideTexturePath)
 			end
 			if changeType ~= EFFECT_RESULT_FADED and not IsAbilityPermanent(abilityID) then
+				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+				end
 				endTime = endTime * 1000
 				if settingsTable.hideInactive and not settingsTable.hidden then 
 					control:SetHidden(false) 
@@ -461,7 +477,11 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				else
 					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
 				end
+				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+				end
 				for j = 1, animation:GetNumAnimations() do 
+
 					animation:GetAnimation(j):SetDuration((endTime - startTime)*1000)
 				end
 				animation:PlayFromStart(GetGameTimeMilliseconds()-startTime*1000)
@@ -486,6 +506,9 @@ local function InitBar(settingsTable, unitTag, control, animation)
 							unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
 						else
 							unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+						end
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+							endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
 						end
 						for j = 1, animation:GetNumAnimations() do 
 							animation:GetAnimation(j):SetDuration((endTime - startTime)*1000)
@@ -539,8 +562,12 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				else
 					unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
 				end
-				for i = 1, animation:GetNumAnimations() do 
-					animation:GetAnimation(i):SetDuration(hitValue)
+				for i = 1, animation:GetNumAnimations() do
+					if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+						animation:GetAnimation(i):SetDuration(1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
+					else
+						animation:GetAnimation(i):SetDuration(hitValue)
+					end
 				end
 				animation:PlayFromStart()
 			end
@@ -560,6 +587,9 @@ local function InitBar(settingsTable, unitTag, control, animation)
 				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
 			else
 				unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(unitTag)))
+			end
+			if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+				endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
 			end
 			for i = 1, animation:GetNumAnimations() do 
 				animation:GetAnimation(i):SetDuration((endTime - startTime)*1000)
@@ -843,7 +873,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 		--EVENT_EFFECT_CHANGED will handle the effect being purged.
 		if settingsTable.type == "Compact" then
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT, function(_, result, _, _, _, _, _, sourceType, targetName, _, hitValue, _,  _, _, _, targetUnitId, abilityId, _)
-				if result == ACTION_RESULT_DIED or result == ACTION_RESULT_DIED_XP then
+				if result == ACTION_RESULT_DIED or result == ACTION_RESULT_DIED_XP and not tonumber(settingsTable.textSettings.duration.overrideDuration) then
 					--Unit died, remove their tracker.
 					local control, controlKey = nil, nil
 					if UniversalTracker.targetIDs_Compact[targetUnitId] then
@@ -874,8 +904,9 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				elseif settingsTable.hashedAbilityIDs[abilityId] and hitValue ~= 1 and
 					(result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION) then
 
-					if (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
+					if settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET then
 						--Someone else applied the buff. Remove the tracker if one exists.
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
 
 						local control, controlKey = nil, nil
 						if UniversalTracker.targetIDs_Compact[targetUnitId] then
@@ -969,7 +1000,12 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end
 							
-						local endTime = GetGameTimeMilliseconds() + hitValue
+						local endTime
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+							endTime = GetGameTimeMilliseconds() + 1000*tonumber(settingsTable.textSettings.duration.overrideDuration)
+						else
+							endTime = GetGameTimeMilliseconds() + hitValue
+						end
 						local durationControl = control:GetNamedChild("Duration")
 						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 							local duration = (endTime-GetGameTimeMilliseconds())/1000
@@ -1014,6 +1050,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, unitName, unitID, abilityID, sourceType)
 				if settingsTable.hashedAbilityIDs[abilityID] then
 					if changeType == EFFECT_RESULT_FADED then
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
+
 						--Effect cleansed early.
 						local control, controlKey = nil, nil
 						if UniversalTracker.targetIDs_Compact[unitID] then
@@ -1106,8 +1144,12 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 							if stackCount > 0 then control:GetNamedChild("Stacks"):SetText(tostring(stackCount)) else control:GetNamedChild("Stacks"):SetText("") end
 						end
-							
+						
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+							endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+						end
 						endTime = endTime * 1000
+
 						local durationControl = control:GetNamedChild("Duration")
 						local stackControl = control:GetNamedChild("Stacks")
 						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
@@ -1155,6 +1197,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 		elseif settingsTable.type == "Bar" then
 			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT, function(_, result, _, _, _, _, _, sourceType, targetName, _, hitValue, _,  _, _, _, targetUnitId, abilityId, _)
 				if result == ACTION_RESULT_DIED or result == ACTION_RESULT_DIED_XP then
+					if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
+
 					--Unit died, remove their tracker.
 					local animation = nil
 					if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
@@ -1174,6 +1218,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 					if (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 						--Someone else applied the buff. 
 						--Remove the tracker by playing the animation instantly to end and letting the onStop function do cleanup.
+
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
 
 						local animation = nil
 						if UniversalTracker.targetIDs_BarAnimation[targetUnitId] then
@@ -1315,7 +1361,11 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 						--Start countdown animation
 						for i = 1, animation:GetNumAnimations() do
-							animation:GetAnimation(i):SetDuration(hitValue)
+							if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+								animation:GetAnimation(i):SetDuration(1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
+							else
+								animation:GetAnimation(i):SetDuration(hitValue)
+							end
 						end
 						animation:PlayFromStart()
 					end
@@ -1326,6 +1376,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 				if settingsTable.hashedAbilityIDs[abilityID] then
 					if changeType == EFFECT_RESULT_FADED then
 						--Effect got cleansed early.
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
 
 						local animation = nil
 						if UniversalTracker.targetIDs_BarAnimation[unitID] then
@@ -1467,6 +1518,9 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 							end
 						end)
 
+						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+							endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+						end
 						--Start countdown animation
 						for i = 1, animation:GetNumAnimations() do
 							animation:GetAnimation(i):SetDuration((endTime - startTime)*1000)
@@ -1583,12 +1637,21 @@ function UniversalTracker.Initialize()
 
     UniversalTracker.InitSettings()
 
-
 	for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
-		UniversalTracker.InitSingleDisplay(v)
+		if v.hidden then
+			--Delay initialization for hidden displays.
+			zo_callLater(function() UniversalTracker.InitSingleDisplay(v) end, 10000)
+		else
+			UniversalTracker.InitSingleDisplay(v)
+		end
 	end
 	for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-		UniversalTracker.InitSingleDisplay(v)
+		if v.hidden then
+			--Delay initialization for hidden displays.
+			zo_callLater(function() UniversalTracker.InitSingleDisplay(v) end, 10000)
+		else
+			UniversalTracker.InitSingleDisplay(v)
+		end
 	end
 
 	LibRadialMenu:RegisterAddon(UniversalTracker.name, UniversalTracker.name)

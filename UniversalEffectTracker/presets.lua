@@ -14,6 +14,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -128,6 +129,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -202,6 +204,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -279,6 +282,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -353,6 +357,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -427,6 +432,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -503,6 +509,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -577,6 +584,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -651,6 +659,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -725,6 +734,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
@@ -799,6 +809,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
+			    overrideDuration = "0",
                 color = {
                     r = 1,
                     g = 1,
