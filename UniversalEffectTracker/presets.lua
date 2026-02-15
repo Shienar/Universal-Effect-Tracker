@@ -14,7 +14,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -111,6 +111,7 @@ UniversalTracker.presets = {
             [134599] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "",
         x = 0,
         y = 0,
         scale = 1,
@@ -129,7 +130,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -186,6 +187,7 @@ UniversalTracker.presets = {
             [38254] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "",
         x = 0,
         y = 0,
         scale = 1,
@@ -204,7 +206,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -263,6 +265,7 @@ UniversalTracker.presets = {
             [31816] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "",
         x = 0,
         y = 0,
         scale = 1,
@@ -282,7 +285,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -339,6 +342,7 @@ UniversalTracker.presets = {
             [122587] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "",
         x = 0,
         y = 0,
         scale = 1,
@@ -357,7 +361,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -414,6 +418,7 @@ UniversalTracker.presets = {
             [122586] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "",
         x = 0,
         y = 0,
         scale = 1,
@@ -432,7 +437,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -491,6 +496,7 @@ UniversalTracker.presets = {
             [75753] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "232",
         x = 0,
         y = 0,
         scale = 1,
@@ -509,7 +515,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -566,6 +572,7 @@ UniversalTracker.presets = {
             [127070] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "147",
         x = 0,
         y = 0,
         scale = 1,
@@ -584,7 +591,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -641,6 +648,7 @@ UniversalTracker.presets = {
             [142653] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "516",
         x = 0,
         y = 0,
         scale = 1,
@@ -659,7 +667,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -716,6 +724,7 @@ UniversalTracker.presets = {
             [142610] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "516",
         x = 0,
         y = 0,
         scale = 1,
@@ -734,7 +743,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -791,6 +800,7 @@ UniversalTracker.presets = {
             [142652] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "516",
         x = 0,
         y = 0,
         scale = 1,
@@ -809,7 +819,7 @@ UniversalTracker.presets = {
         },
         textSettings = {
             duration = {
-			    overrideDuration = "0",
+			    overrideDuration = "",
                 color = {
                     r = 1,
                     g = 1,
@@ -872,6 +882,7 @@ UniversalTracker.presets = {
             [95924] = true,
         },
         overrideTexturePath = "",
+        requiredSetID = "",
         x = 0,
         y = 0,
         scale = 1,

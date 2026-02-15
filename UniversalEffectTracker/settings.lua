@@ -13,6 +13,8 @@ local currentPageIndex = 2
 local editIndex = -1
 local isCharacterSettings = false
 
+local firstAbilityIDIndex = 0
+
 -- New/updated tracker settings. Local until "save"
 -- These are default values for a new tracker.
 local newTracker = {
@@ -20,7 +22,14 @@ local newTracker = {
 	name = "",
 	type = "Compact",
 	targetType = "Player",
+	overrideTexturePath = "",
+	requiredSetID = "",
 	appliedBySelf = false,
+	hideInactive = false,
+	hidden = false,
+	x = 0,
+	y = 0,
+	scale = 1,
 	listSettings = {
 		columns = 1,
 		horizontalOffsetScale = 1,
@@ -84,12 +93,6 @@ local newTracker = {
 	hashedAbilityIDs = { --abilityIDs are keys
 
 	},
-	overrideTexturePath = "",
-	x = 0,
-	y = 0,
-	scale = 1,
-	hidden = false,
-	hideInactive = false,
 }
 
 local newSetup = {
@@ -512,11 +515,11 @@ function UniversalTracker.InitSettings()
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
-							settings:RemoveSettings(10, 1, false)
+							settings:RemoveSettings(firstAbilityIDIndex, 1, false)
 
 							--dynamically add the extra ability IDs
 							for i = 1, (#UniversalTracker.savedVariables.trackerList[editIndex].abilityIDs) do
-								local newIndex = 9 + i
+								local newIndex = firstAbilityIDIndex + i - 1
 								settings:AddSetting({
 									type = setNewAbilityID.type,
 									label = setNewAbilityID.label,
@@ -530,7 +533,7 @@ function UniversalTracker.InitSettings()
 											-- This set function gets executed twice (same millisecond) but we only want to run this once.
 											EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 												settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-												newTracker.abilityIDs[newIndex - 9] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+												newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 												EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 											end)
 										end
@@ -588,11 +591,11 @@ function UniversalTracker.InitSettings()
 							loadMenu(settingPages.newTracker, 2)
 
 							--remove the base ability ID
-							settings:RemoveSettings(10, 1, false)
+							settings:RemoveSettings(firstAbilityIDIndex, 1, false)
 
 							--dynamically add the extra ability IDs
 							for i = 1, (#UniversalTracker.characterSavedVariables.trackerList[editIndex].abilityIDs) do
-								local newIndex = 9 + i
+								local newIndex = firstAbilityIDIndex + i - 1
 								settings:AddSetting({
 									type = setNewAbilityID.type,
 									label = setNewAbilityID.label,
@@ -606,7 +609,7 @@ function UniversalTracker.InitSettings()
 											-- This set function gets executed twice (same millisecond) but we only want to run this once.
 											EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 												settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-												newTracker.abilityIDs[newIndex - 9] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+												newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 												EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 											end)
 										end
@@ -664,7 +667,14 @@ function UniversalTracker.InitSettings()
 				name = "",
 				type = "Compact",
 				targetType = "Player",
+				overrideTexturePath = "",
+				requiredSetID = "",
 				appliedBySelf = false,
+				hideInactive = false,
+				hidden = false,
+				x = 0,
+				y = 0,
+				scale = 1,
 				listSettings = {
 					columns = 1,
 					horizontalOffsetScale = 1,
@@ -728,12 +738,6 @@ function UniversalTracker.InitSettings()
 				hashedAbilityIDs = { --abilityIDs are keys
 
 				},
-				overrideTexturePath = "",
-				x = 0,
-				y = 0,
-				scale = 1,
-				hidden = false,
-				hideInactive = false,
 			}
 
 			loadMenu(settingPages.newTracker, 2)
@@ -1041,26 +1045,7 @@ function UniversalTracker.InitSettings()
 		tooltip = "PERMANENTLY removes this tracker.\n\
 					This action cannot be undone.",
 		clickHandler = function(control)
-
-			--Unregister potential "All" trackers.
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..newTracker.id, EVENT_COMBAT_EVENT) 
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..newTracker.id, EVENT_EFFECT_CHANGED)
-
-			if UniversalTracker.Controls[newTracker.id].object then
-				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.Controls[newTracker.id].object:GetName())
-				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks") then
-					--compact
-					UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[newTracker.id].key)
-				else
-					--bar 
-					UniversalTracker.barPool:ReleaseObject(UniversalTracker.Controls[newTracker.id].key)
-				end
-			end
-			if UniversalTracker.Animations[newTracker.id] and UniversalTracker.Animations[newTracker.id].object then
-				UniversalTracker.barAnimationPool:ReleaseObject(UniversalTracker.Animations[newTracker.id].key)
-			end
-
-			UniversalTracker.freeLists(newTracker)
+			UniversalTracker.ReleaseSingleDisplay(settingsTable)
 
 			if isCharacterSettings then
 				table.remove(UniversalTracker.characterSavedVariables.trackerList, editIndex)
@@ -1233,6 +1218,19 @@ function UniversalTracker.InitSettings()
 		default = 1
 	}
 
+	local setRequiredSetID = {
+		type = LibHarvensAddonSettings.ST_EDIT,
+		textType = TEXT_TYPE_NUMERIC,
+		label = "Required Set ID",
+		tooltip = "If this setting is set, the tracker will only be enabled while receiving the full set bonus from the specified set.\n\
+					Visit the utilities page to get a printout of your equipped sets' IDs",
+		getFunction = function() return newTracker.requiredSetID end,
+		setFunction = function(value)
+			newTracker.requiredSetID = value
+		end,
+		default = ""
+	}
+
 	local setNewTrackerOverrideTexture = {
 		type = LibHarvensAddonSettings.ST_EDIT,
 		label = "Override Texture",
@@ -1280,10 +1278,11 @@ function UniversalTracker.InitSettings()
 		default = newTracker.hideInactive
 	}
 
+	-- Sets as hidden while in the menu. Hidden trackers get released when the user hits save.
 	local hideTracker = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
-		label = "Hide Tracker",
-		tooltip = "Hides the tracker without deleting it.",
+		label = "Disable Tracker",
+		tooltip = "Disables the tracker without deleting it.",
 		getFunction = function() return newTracker.hidden end,
 		setFunction = function(value) 
 			newTracker.hidden = value
@@ -1314,7 +1313,7 @@ function UniversalTracker.InitSettings()
 				-- This set function gets executed twice (same millisecond) but we only want to run this once.
 				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index 0", 20, function()
 					settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-					newTracker.abilityIDs[LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex - 9] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+					newTracker.abilityIDs[LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 					EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index 0")
 				end)
 			end
@@ -1329,26 +1328,26 @@ function UniversalTracker.InitSettings()
 		tooltip = "Adds an ability ID that you can track.",
 		clickHandler = function(control)
 			local newIndex = settings:GetIndexOf(add1AbilityID, true)
-			newTracker.abilityIDs[newIndex - 9] = ""
+			newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = ""
 			settings:AddSetting({
 				type = setNewAbilityID.type,
 				label = setNewAbilityID.label,
 				tooltip = setNewAbilityID.tooltip,
 				textType = setNewAbilityID.textType,
 				maxChars = setNewAbilityID.maxChars,
-				getFunction = function() return newTracker.abilityIDs[newIndex - 9] end,
+				getFunction = function() return newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] end,
 				setFunction = function(value) 
-					newTracker.abilityIDs[newIndex - 9] = value
+					newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = value
 					if value == "0" then
 						-- This set function gets executed twice (same millisecond) but we only want to run this once.
 						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 							settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-							newTracker.abilityIDs[newIndex - 9] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+							newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 						end)
 					end
 				end,
-				default = newTracker.abilityIDs[newIndex - 9]
+				default = newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1]
 			}, newIndex, false)
 		end
 	}
@@ -2051,6 +2050,16 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
+	local printItemSets = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "SETS",
+		buttonText = "PRINT SETIDS",
+		tooltip = "Prints the Set IDs of your currently equipped sets.",
+		clickHandler = function(control)
+			UniversalTracker.printEquips()
+		end
+	}
+
 	--Not a saved variable
 	local spamRegistered = false
 	local debugSpam = {
@@ -2394,16 +2403,29 @@ function UniversalTracker.InitSettings()
 	settingPages.setupList = {accountSetupsLabel, characterSetupsLabel, navLabel, returnToMainMenuButton}
 	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
-	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, appliedBySelf, hideInactive, hideTracker,
+	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setRequiredSetID, setNewTrackerOverrideTexture, appliedBySelf, hideInactive, hideTracker,
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, 
 									positionLabel, newScale, newXOffset, newYOffset,
 									textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
 														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
 														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
 									navLabel, trackerCancelButton, trackerSaveButton}
-	settingPages.utilities = {printLabel, printCurrentEffects, printTargetEffects, printBossEffects, debugSpam,
+	settingPages.utilities = {printLabel, printItemSets, printCurrentEffects, printTargetEffects, printBossEffects, debugSpam,
 									presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
 									navLabel, returnToMainMenuButton}
+
+
+	-- I'm resorting to storing and calculating this so 
+	-- I don't have to edit a dozen lines every time I want to
+	-- put a setting before the abilityID
+	--
+	-- This is the index of the first abilityID textbox.
+	for k, v in pairs(settingPages.newTracker) do
+		if v.label == "Ability ID" then
+			firstAbilityIDIndex = k
+			break
+		end
+	end
 
 	settings:AddSettings(settingPages.mainMenu)
 end
