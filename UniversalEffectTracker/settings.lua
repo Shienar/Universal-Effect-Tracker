@@ -1045,7 +1045,7 @@ function UniversalTracker.InitSettings()
 		tooltip = "PERMANENTLY removes this tracker.\n\
 					This action cannot be undone.",
 		clickHandler = function(control)
-			UniversalTracker.ReleaseSingleDisplay(settingsTable)
+			UniversalTracker.ReleaseSingleDisplay(newTracker)
 
 			if isCharacterSettings then
 				table.remove(UniversalTracker.characterSavedVariables.trackerList, editIndex)
