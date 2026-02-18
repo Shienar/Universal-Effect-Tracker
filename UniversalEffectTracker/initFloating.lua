@@ -125,7 +125,9 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
     end)
 
     EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..floatingControl:GetName(), EVENT_EFFECT_CHANGED, function( _, changeType, _, _, tag, startTime, endTime, stackCount, _, _, _, _, _, _, _, abilityID, sourceType)
-		if settingsTable.hashedAbilityIDs[abilityID] and
+		if not AreUnitsEqual(unitTag, tag) then return end
+
+        if settingsTable.hashedAbilityIDs[abilityID] and
 			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 
             if changeType == EFFECT_RESULT_FADED then

@@ -46,11 +46,7 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 	if settingsTable.id then
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT) 
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_EFFECT_CHANGED)
-		
-		if UniversalTracker.Controls[settingsTable.id] and UniversalTracker.Controls[settingsTable.id].object then 
-			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.Controls[settingsTable.id].object:GetName())
-		end
-
+	
 		if UniversalTracker.FloatingControls.list[settingsTable.id] and #UniversalTracker.FloatingControls.list[settingsTable.id] > 0 then
 			for k, v in pairs(UniversalTracker.FloatingControls.list[settingsTable.id]) do
 				UniversalTracker.floatingPool:ReleaseObject(v.key)
@@ -215,6 +211,8 @@ function UniversalTracker.Initialize()
 
 	HUD_FRAGMENT:RegisterCallback("StateChange", function(oldState, newState)
 		if newState == SCENE_FRAGMENT_SHOWN then
+			--release settings preview
+
 			--unhide everything.
 			for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 				if UniversalTracker.Controls[v.id] then

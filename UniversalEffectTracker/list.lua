@@ -236,7 +236,6 @@ function UniversalTracker.freeLists(settingsTable)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DESTROYED)
 	EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_CREATED)
-	EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..settingsTable.id)
 	
 	-- Don't do anything if not passed lists.
 	if UniversalTracker.Controls[settingsTable.id].object or (UniversalTracker.Animations[settingsTable.id] and UniversalTracker.Animations[settingsTable.id].object) then

@@ -6,9 +6,24 @@ local settingPages = {
 	setupList = {},
 	newSetup = {},
 	trackedList = {},
-	newTracker = {},
+	newTracker = {
+		general = {},
+		abilities = {},
+		position = {},
+		columns = {},
+		text = {
+			label = nil,
+			duration = {},
+			stacks = {},
+			abilityName = {},
+			unitName = {},
+		},
+		editedNav = {},
+		newNav = {},
+	},
 	utilities = {},
 }
+
 local currentPageIndex = 2
 local editIndex = -1
 local isCharacterSettings = false
@@ -99,9 +114,7 @@ local newTracker = {
 local newSetup = {
 	name = "New Setup",
 	id = -1,
-	trackerIDList = {
-
-	}
+	trackerIDList = {}
 }
 
 local function createHashedIDList(settingAbilityIDs)
@@ -124,44 +137,38 @@ local function loadMenu(menu, jumpToIndex)
 	end
 end
 
-local function temporarilyShowControl(index) 
-    --Hide control 5 seconds after most recent change.
-	--This function is safe to call when no controls exist.
-
-	local controlObject
-	local controlList
-	if not isCharacterSettings and UniversalTracker.savedVariables.trackerList[index] then
-		controlList = UniversalTracker.Controls[UniversalTracker.savedVariables.trackerList[index].id]
-		controlObject = controlList.object
-	elseif UniversalTracker.characterSavedVariables.trackerList[index] then
-		controlList = UniversalTracker.Controls[UniversalTracker.characterSavedVariables.trackerList[index].id]
-		controlObject = controlList.object
-	end
-	if controlObject then
-		controlObject:SetHidden(false)
-		EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." move "..controlObject:GetName(), 5000, function()
-			if SCENE_MANAGER:GetScene("hud"):GetState() == SCENE_HIDDEN then
-				controlObject:SetHidden(true)
-			end
-			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..controlObject:GetName())
-		end)
-	elseif controlList and controlList[1] and controlList[1].object then
-		for i = 1, #controlList do
-			if controlList[i].object then
-				controlList[i].object:SetHidden(false)
-			end
+--Appends table2 to table1
+local function appendTables(table1, table2)
+	if type(table2) == "table" then
+		for _, v in ipairs(table2) do
+			table.insert(table1, v)
 		end
-		EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.savedVariables.trackerList[index].id, 5000, function()
-			if SCENE_MANAGER:GetScene("hud"):GetState() == SCENE_HIDDEN then
-				for i = 1, #controlList do
-					if controlList[i].object then
-						controlList[i].object:SetHidden(true)
-					end
-				end
-			end
-			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.savedVariables.trackerList[index].id)
-		end)
+	elseif table2 ~= nil then
+		table.insert(table1, table2)
 	end
+end
+
+local function updateTrackerSettingList(jumpToIndex)
+	--Modify the provided settaings as needed to fit tracker type.
+	local loadedSettingsList = {}
+	appendTables(loadedSettingsList, settingPages.newTracker.general)
+	appendTables(loadedSettingsList, settingPages.newTracker.abilities)
+	appendTables(loadedSettingsList, settingPages.newTracker.position)
+	if newTracker.targetType == "Boss" or newTracker.targetType == "All" or newTracker.targetType == "Group" then 
+		appendTables(loadedSettingsList, settingPages.newTracker.columns)
+	end
+	appendTables(loadedSettingsList, settingPages.newTracker.text.label)
+	appendTables(loadedSettingsList, settingPages.newTracker.text.duration)
+	if newTracker.type == "Compact" then
+		appendTables(loadedSettingsList, settingPages.newTracker.text.stacks)
+	end
+	if newTracker.type == "Bar" or newTracker.type == "Compact" then
+		appendTables(loadedSettingsList, settingPages.newTracker.text.abilityName)
+		appendTables(loadedSettingsList, settingPages.newTracker.text.unitName)
+	end
+	appendTables(loadedSettingsList, settingPages.newTracker.editedNav)
+	
+	loadMenu(loadedSettingsList, jumpToIndex)
 end
 
 local function getNextAvailableIndex(charSettings, isSetup)
@@ -239,6 +246,22 @@ function UniversalTracker.loadSetup(id)
 			end
 		end
 	end
+
+end
+
+--It might be expensive to call this repeatedly on slider settings, but this
+--makes the code more maintainable and I don't expect performance issues
+--when the player is sitting in a menu.
+UniversalTracker.previewTrackerInfo = ZO_DeepTableCopy(newTracker)
+local function previewTracker()
+	UniversalTracker.previewTrackerInfo = ZO_DeepTableCopy(newTracker)
+	UniversalTracker.previewTrackerInfo.id = -999
+
+	UniversalTracker.InitSingleDisplay(UniversalTracker.previewTrackerInfo)
+	EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.."PreviewTracker", 2500, function()
+		EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."PreviewTracker")
+		UniversalTracker.ReleaseSingleDisplay(UniversalTracker.previewTrackerInfo)
+	end)
 
 end
 
@@ -501,6 +524,58 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
+	-- Helper function to reduce clutter between account/character saved variables
+	local function loadTrackerList(savedVarTrackerListTable, isCharSettings)
+		local insertOffset = 2
+		if isCharSettings then insertOffset = 1 end
+		for k, v in pairs(savedVarTrackerListTable) do
+			if v.name then --avoids creating blank entries in the list.
+				settings:AddSetting({
+					type = LibHarvensAddonSettings.ST_BUTTON,
+					label = savedVarTrackerListTable[k].name, 
+					buttonText = savedVarTrackerListTable[k].name, 
+					tooltip = "Edit this tracker.",
+					clickHandler = function(control)
+						editIndex = k
+						isCharacterSettings = isCharSettings
+						newTracker = ZO_DeepTableCopy(savedVarTrackerListTable[editIndex])
+
+						updateTrackerSettingList(2)
+
+						--remove the base ability ID
+						settings:RemoveSettings(firstAbilityIDIndex, 1, false)
+
+						--dynamically add the extra ability IDs
+						for i = 1, (#savedVarTrackerListTable[editIndex].abilityIDs) do
+							local newIndex = firstAbilityIDIndex + i - 1
+							settings:AddSetting({
+								type = setNewAbilityID.type,
+								label = setNewAbilityID.label,
+								tooltip = setNewAbilityID.tooltip,
+								textType = setNewAbilityID.textType,
+								maxChars = setNewAbilityID.maxChars,
+								getFunction = function() return newTracker.abilityIDs[i] end,
+								setFunction = function(value) 
+									newTracker.abilityIDs[i] = value
+									if value == "0" then
+										-- This set function gets executed twice (same millisecond) but we only want to run this once.
+										EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
+											settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
+											newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+											EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
+										end)
+									end
+								end,
+								default = newTracker.abilityIDs[i]
+							}, newIndex, false)
+						end
+
+					end
+				}, #settings.settings - insertOffset, false)
+			end
+		end
+	end
+
 	local trackedListMenuButton = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "TRACKER LIST",
@@ -510,187 +585,8 @@ function UniversalTracker.InitSettings()
 			loadMenu(settingPages.trackedList, 2)
 			currentPageIndex = 5
 
-			--Account trackers
-			for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
-				if v.name then --avoids creating blank entries in the list.
-					settings:AddSetting({
-						type = LibHarvensAddonSettings.ST_BUTTON,
-						label = UniversalTracker.savedVariables.trackerList[k].name, 
-						buttonText = UniversalTracker.savedVariables.trackerList[k].name, 
-						tooltip = "Edit this tracker.",
-						clickHandler = function(control)
-							editIndex = k
-							isCharacterSettings = false
-							newTracker = ZO_DeepTableCopy(UniversalTracker.savedVariables.trackerList[editIndex])
-							loadMenu(settingPages.newTracker, 2)
-
-							--remove the base ability ID
-							settings:RemoveSettings(firstAbilityIDIndex, 1, false)
-
-							--dynamically add the extra ability IDs
-							for i = 1, (#UniversalTracker.savedVariables.trackerList[editIndex].abilityIDs) do
-								local newIndex = firstAbilityIDIndex + i - 1
-								settings:AddSetting({
-									type = setNewAbilityID.type,
-									label = setNewAbilityID.label,
-									tooltip = setNewAbilityID.tooltip,
-									textType = setNewAbilityID.textType,
-									maxChars = setNewAbilityID.maxChars,
-									getFunction = function() return newTracker.abilityIDs[i] end,
-									setFunction = function(value) 
-										newTracker.abilityIDs[i] = value
-										if value == "0" then
-											-- This set function gets executed twice (same millisecond) but we only want to run this once.
-											EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
-												settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-												newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
-												EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
-											end)
-										end
-									end,
-									default = newTracker.abilityIDs[i]
-								}, newIndex, false)
-							end
-
-							--Modify settings as needed to fit tracker type
-							if newTracker.type == "Bar" then
-								local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-								if stacksIndex then
-									settings:RemoveSettings(stacksIndex, 6, false)
-									settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
-															stacksIndex, false)
-								end
-							elseif newTracker.type == "Compact" then
-								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-								if nameIndex then
-									settings:RemoveSettings(nameIndex, 6, false)
-									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
-								end
-							elseif newTracker.type == "Floating" then
-								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-								if nameIndex then
-									settings:RemoveSettings(nameIndex, 6, false)				
-								else
-									local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-									if stacksIndex then
-										settings:RemoveSettings(stacksIndex, 6, false)
-									end
-								end
-
-								local scaleIndex = settings:GetIndexOf(newScale, true)
-								if scaleIndex then
-									settings:RemoveSettings(scaleIndex+1, 17, false)
-								end
-							end
-
-							-- Modify settings as needed to fit target type
-							local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
-							if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then
-								-- Add list settings if needed
-								local textIndex = settings:GetIndexOf(textSettingsLabel, true)
-								if not listSettingIndex and textIndex then
-									settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
-								end
-							end
-
-							--Add the remove and copy buttons
-							settings:AddSettings({deleteTracker, copyTrackerToCharacter, copyTrackerToAccount}, #settings.settings - 1, false)
-
-						end
-					}, #settings.settings - 2, false)
-				end
-			end
-
-			--Character trackers
-			for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
-				if v.name then
-					settings:AddSetting({
-						type = LibHarvensAddonSettings.ST_BUTTON,
-						label = UniversalTracker.characterSavedVariables.trackerList[k].name, 
-						buttonText = UniversalTracker.characterSavedVariables.trackerList[k].name, 
-						tooltip = "Edit this tracker.",
-						clickHandler = function(control)
-							editIndex = k
-							isCharacterSettings = true
-							newTracker = ZO_DeepTableCopy(UniversalTracker.characterSavedVariables.trackerList[editIndex])
-							loadMenu(settingPages.newTracker, 2)
-
-							--remove the base ability ID
-							settings:RemoveSettings(firstAbilityIDIndex, 1, false)
-
-							--dynamically add the extra ability IDs
-							for i = 1, (#UniversalTracker.characterSavedVariables.trackerList[editIndex].abilityIDs) do
-								local newIndex = firstAbilityIDIndex + i - 1
-								settings:AddSetting({
-									type = setNewAbilityID.type,
-									label = setNewAbilityID.label,
-									tooltip = setNewAbilityID.tooltip,
-									textType = setNewAbilityID.textType,
-									maxChars = setNewAbilityID.maxChars,
-									getFunction = function() return newTracker.abilityIDs[i] end,
-									setFunction = function(value) 
-										newTracker.abilityIDs[i] = value
-										if value == "0" then
-											-- This set function gets executed twice (same millisecond) but we only want to run this once.
-											EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
-												settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-												newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
-												EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
-											end)
-										end
-									end,
-									default = newTracker.abilityIDs[i]
-								}, newIndex, false)
-							end
-
-							--Modify settings as needed to fit tracker type
-							if newTracker.type == "Bar" then
-								local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-								if stacksIndex then
-									settings:RemoveSettings(stacksIndex, 6, false)
-									settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
-															stacksIndex, false)
-								end
-							elseif newTracker.type == "Compact" then
-								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-								if nameIndex then
-									settings:RemoveSettings(nameIndex, 6, false)
-									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
-								end
-							elseif newTracker.type == "Floating" then	
-								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-								if nameIndex then
-									settings:RemoveSettings(nameIndex, 6, false)				
-								else
-									local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-									if stacksIndex then
-										settings:RemoveSettings(stacksIndex, 6, false)
-									end
-								end
-
-								local scaleIndex = settings:GetIndexOf(newScale, true)
-								if scaleIndex then
-									settings:RemoveSettings(scaleIndex+1, 17, false)
-								end
-							end
-
-							-- Modify settings as needed to fit target type
-							local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
-							if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then
-								-- Add list settings if needed
-								local textIndex = settings:GetIndexOf(textSettingsLabel, true)
-								if not listSettingIndex and textIndex then
-									settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
-								end
-							end
-
-							--Add the remove button
-							settings:AddSettings({deleteTracker, copyTrackerToCharacter, copyTrackerToAccount}, #settings.settings - 1, false)
-
-						end
-					}, #settings.settings - 1, false)
-				end
-			end
+			loadTrackerList(UniversalTracker.savedVariables.trackerList, false)
+			loadTrackerList(UniversalTracker.characterSavedVariables.trackerList, true)
 
 			LibHarvensAddonSettings.list:SetSelectedIndexWithoutAnimation(2)
 		end
@@ -773,16 +669,24 @@ function UniversalTracker.InitSettings()
 						accountName = true,
 					},
 				},
-				abilityIDs = { --abilityIDs are values
-					[1] = "",
-				},
-				hashedAbilityIDs = { --abilityIDs are keys
-
-				},
+				abilityIDs = { [1] = "" }, --abilityIDs are values
+				hashedAbilityIDs = {}, --abilityIDs are keys
 			}
 
-			loadMenu(settingPages.newTracker, 2)
-			settings:AddSetting(setNewTrackerSaveType, #settings.settings - 1, false)
+			--Modify the provided settaings as needed to fit the default tracker type (Compact, Player)
+			local loadedSettingsList = {}
+			appendTables(loadedSettingsList, settingPages.newTracker.general)
+			appendTables(loadedSettingsList, settingPages.newTracker.abilities)
+			appendTables(loadedSettingsList, settingPages.newTracker.position)
+			appendTables(loadedSettingsList, settingPages.newTracker.text.label)
+			appendTables(loadedSettingsList, settingPages.newTracker.text.duration)
+			appendTables(loadedSettingsList, settingPages.newTracker.text.stacks)
+			appendTables(loadedSettingsList, settingPages.newTracker.text.abilityName)
+			appendTables(loadedSettingsList, settingPages.newTracker.text.unitName)
+			appendTables(loadedSettingsList, settingPages.newTracker.newNav)
+			
+			loadMenu(loadedSettingsList, 2)
+
 			isCharacterSettings = false
 
 			currentPageIndex = 6
@@ -1015,7 +919,6 @@ function UniversalTracker.InitSettings()
 					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				end
 				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-				if not UniversalTracker.savedVariables.trackerList[index].hidden then temporarilyShowControl(index) end
 			else
 				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(newTracker)
 				if editIndex < 0 then
@@ -1023,7 +926,6 @@ function UniversalTracker.InitSettings()
 					UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 				end
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-				if not UniversalTracker.characterSavedVariables.trackerList[index].hidden then temporarilyShowControl(index) end
 			end
 			
 			
@@ -1041,10 +943,8 @@ function UniversalTracker.InitSettings()
 			if editIndex >= 0 then
 				if not isCharacterSettings then
 					UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[editIndex]) --Load old changes
-					temporarilyShowControl(editIndex)
 				else
 					UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[editIndex]) --Load old changes
-					temporarilyShowControl(editIndex)
 				end
 			end
 			editIndex = -1
@@ -1167,76 +1067,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.type end,
 		setFunction = function(control, itemName, itemData) 
 			newTracker.type = itemName
-			if newTracker.type == "Bar" then
-				local textLabelIndex = settings:GetIndexOf(textSettingsLabel, true)
-				if not textLabelIndex then
-					local scaleIndex = settings:GetIndexOf(newScale, true)
-					if scaleIndex then
-						settings:AddSettings({newXOffset, newYOffset, textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
-														abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
-														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
-												scaleIndex + 1, false)
-					end
-				else
-					local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-					if stacksIndex then
-						settings:RemoveSettings(stacksIndex, 6, false)
-						settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
-											stacksIndex, false)
-					end
-				end
-
-				if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then		
-					local textIndex = settings:GetIndexOf(textSettingsLabel, true)
-					if  textIndex then
-						settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
-					end
-				end
-			elseif newTracker.type == "Compact" then
-				local textLabelIndex = settings:GetIndexOf(textSettingsLabel, true)
-				if not textLabelIndex then
-					local scaleIndex = settings:GetIndexOf(newScale, true)
-					if scaleIndex then
-						settings:AddSettings({newXOffset, newYOffset, textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
-														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
-														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
-												scaleIndex + 1, false)
-					end
-				else
-					local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-					if nameIndex then
-						settings:RemoveSettings(nameIndex, 6, false)
-						settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
-					end
-				end
-
-				if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then		
-					local textIndex = settings:GetIndexOf(textSettingsLabel, true)
-					if  textIndex then
-						settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
-					end
-				end
-			elseif newTracker.type == "Floating" then
-				local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
-				if listSettingIndex then
-					settings:RemoveSettings(listSettingIndex, 3, false)
-				end
-
-				local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
-				if nameIndex then
-					settings:RemoveSettings(nameIndex, 6, false)				
-				else
-					local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-					if stacksIndex then
-						settings:RemoveSettings(stacksIndex, 6, false)
-					end
-				end
-
-				local scaleIndex = settings:GetIndexOf(newScale, true)
-				if scaleIndex then
-					settings:RemoveSettings(scaleIndex, 17, false)
-				end
-			end
+			updateTrackerSettingList(3)
 		end,
 		default = 1,
 	}
@@ -1255,19 +1086,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.targetType end,
 		setFunction = function(control, itemName, itemData) 
 			newTracker.targetType = itemName
-			local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
-			if itemName == "Boss" or itemName =="Group" or itemName == "All" then
-				-- Add list settings if needed
-				local textIndex = settings:GetIndexOf(textSettingsLabel, true)
-				if not listSettingIndex and textIndex then
-					settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
-				end
-			else
-				--Remove list settings if existing
-				if listSettingIndex then
-					settings:RemoveSettings(listSettingIndex, 4, false)
-				end
-			end
+			updateTrackerSettingList(4)
 		end,
 		default = 1
 	}
@@ -1297,12 +1116,7 @@ function UniversalTracker.InitSettings()
 			else
 				newTracker.overrideTexturePath = value
 			end
-			if UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Texture"):SetTexture(newTracker.overrideTexturePath)
-			elseif UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = ""
 	}
@@ -1327,8 +1141,6 @@ function UniversalTracker.InitSettings()
 		setFunction = function(value) 
 			newTracker.hideInactive = value
 			if value then newTracker.hideActive = false end
-
-			--Only updates when user saves tracker.
 		end,
 		default = newTracker.hideInactive
 	}
@@ -1341,8 +1153,6 @@ function UniversalTracker.InitSettings()
 		setFunction = function(value) 
 			newTracker.hideActive = value
 			if value then newTracker.hideInactive = false end
-
-			--Only updates when user saves tracker.
 		end,
 		default = newTracker.hideActive
 	}
@@ -1355,14 +1165,6 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.hidden end,
 		setFunction = function(value) 
 			newTracker.hidden = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:SetHidden(value)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			if value == false then
-				temporarilyShowControl(editIndex)
-			end
 		end,
 		default = newTracker.hidden
 	}
@@ -1433,15 +1235,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.x end,
 		setFunction = function(value)
 			newTracker.x = value
-			if UniversalTracker.Controls[newTracker.id] then
-				if UniversalTracker.Controls[newTracker.id].object then
-					UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
-					UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-				elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-					UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-				end
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.x
 	}
@@ -1458,15 +1252,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.y end,
 		setFunction = function(value) 
 			newTracker.y = value
-			if UniversalTracker.Controls[newTracker.id] then
-				if UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id].object then
-					UniversalTracker.Controls[newTracker.id].object:ClearAnchors()
-					UniversalTracker.Controls[newTracker.id].object:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, newTracker.x, newTracker.y)
-				elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-					UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-				end
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.y
 	}
@@ -1483,12 +1269,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.scale end,
 		setFunction = function(value)
 			newTracker.scale = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:SetScale(value)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.scale
 	}
@@ -1510,8 +1291,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.listSettings.columns end,
 		setFunction = function(value)
 			newTracker.listSettings.columns = value
-			--TODO: Anchor updates
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.listSettings.columns
 	}
@@ -1529,8 +1309,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.listSettings.horizontalOffsetScale end,
 		setFunction = function(value)
 			newTracker.listSettings.horizontalOffsetScale = value
-			--TODO: Anchor updates
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.listSettings.horizontalOffsetScale
 	}
@@ -1548,8 +1327,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.listSettings.verticalOffsetScale end,
 		setFunction = function(value)
 			newTracker.listSettings.verticalOffsetScale = value
-			--TODO: Anchor updates
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.listSettings.verticalOffsetScale
 	}
@@ -1565,14 +1343,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.hidden = value 
-			if UniversalTracker.Controls[newTracker.id].object then
-				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
-				if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") end
-				child:SetHidden(value)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.duration.hidden
 	}
@@ -1601,14 +1372,7 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.duration.color = {r = r, g = g, b = b, a = a}
-			if UniversalTracker.Controls[newTracker.id].object then
-				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
-				if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") end
-				child:SetColor(newTracker.textSettings.duration.color.r, newTracker.textSettings.duration.color.g, newTracker.textSettings.duration.color.b, newTracker.textSettings.duration.color.a  )
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -1625,14 +1389,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.duration.textScale = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
-				if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") end
-				child:SetScale(newTracker.textSettings.duration.textScale)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.duration.textScale
 	}
@@ -1649,20 +1406,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.x  = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
-				if not child then 
-					child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") 
-					child:ClearAnchors()
-					child:SetAnchor(RIGHT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
-				else
-					child:ClearAnchors()
-					child:SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.duration.x 
 	}
@@ -1679,20 +1423,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.duration.y = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Duration")
-				if not child then 
-					child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Duration") 
-					child:ClearAnchors()
-					child:SetAnchor(RIGHT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), RIGHT, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
-				else
-					child:ClearAnchors()
-					child:SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.duration.x, newTracker.textSettings.duration.y)
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.duration.y
 	}
@@ -1704,12 +1435,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.duration.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.hidden = value 
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetHidden(value)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.duration.hidden
 	}
@@ -1724,12 +1450,7 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.stacks.color = {r = r, g = g, b = b, a = a}
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetColor(newTracker.textSettings.stacks.color.r, newTracker.textSettings.stacks.color.g, newTracker.textSettings.stacks.color.b, newTracker.textSettings.stacks.color.a  )
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -1746,12 +1467,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.stacks.textScale = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetScale(newTracker.textSettings.stacks.textScale)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.stacks.textScale
 	}
@@ -1768,13 +1484,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.x  = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):ClearAnchors()
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.stacks.x 
 	}
@@ -1791,13 +1501,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.stacks.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.stacks.y = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):ClearAnchors()
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Stacks"):SetAnchor(CENTER, UniversalTracker.Controls[newTracker.id].object, CENTER, newTracker.textSettings.stacks.x, newTracker.textSettings.stacks.y)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.stacks.y
 	}
@@ -1809,12 +1513,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.hidden = value 
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetHidden(value)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.abilityLabel.hidden
 	}
@@ -1829,12 +1528,7 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.abilityLabel.color = {r = r, g = g, b = b, a = a}
-			if UniversalTracker.Controls[newTracker.id] and UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetColor(newTracker.textSettings.abilityLabel.color.r, newTracker.textSettings.abilityLabel.color.g, newTracker.textSettings.abilityLabel.color.b, newTracker.textSettings.abilityLabel.color.a  )
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -1851,12 +1545,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.abilityLabel.textScale = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetScale(newTracker.textSettings.abilityLabel.textScale)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.abilityLabel.textScale
 	}
@@ -1873,13 +1562,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.x = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.abilityLabel.x 
 	}
@@ -1896,13 +1579,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.abilityLabel.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.abilityLabel.y = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):ClearAnchors()
-				UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("AbilityName"):SetAnchor(LEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), LEFT, newTracker.textSettings.abilityLabel.x, newTracker.textSettings.abilityLabel.y)
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.abilityLabel.y
 	}
@@ -1914,16 +1591,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.hidden end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.hidden = value 
-			if UniversalTracker.Controls[newTracker.id].object then
-				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetHidden(value)
-				else
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetHidden(value)
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.unitLabel.hidden
 	}
@@ -1935,25 +1603,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.accountName end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.accountName = value 
-			if UniversalTracker.Controls[newTracker.id].object then
-				local tag
-				if newTracker.targetType == "Player" then tag = "player" 
-				elseif newTracker.targetType == "Reticle Target" then tag = "reticleover" end
-				if DoesUnitExist(tag) then
-
-					local child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName")
-					if not child then child = UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName") end
-					
-					if value then
-						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(tag)))
-					else
-						child:SetText(zo_strformat(SI_UNIT_NAME, GetUnitName(tag)))
-					end
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.unitLabel.accountName
 	}
@@ -1968,16 +1618,7 @@ function UniversalTracker.InitSettings()
 		end,
 		setFunction = function(r, g, b, a) 
 			newTracker.textSettings.unitLabel.color = {r = r, g = g, b = b, a = a}
-			if UniversalTracker.Controls[newTracker.id].object then
-				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
-				else
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetColor(newTracker.textSettings.unitLabel.color.r, newTracker.textSettings.unitLabel.color.g, newTracker.textSettings.unitLabel.color.b, newTracker.textSettings.unitLabel.color.a  )
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = {1, 1, 1, 1}
 	}
@@ -1994,16 +1635,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.textScale end,
 		setFunction = function(value)
 			newTracker.textSettings.unitLabel.textScale = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
-				else
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetScale(newTracker.textSettings.unitLabel.textScale)
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.unitLabel.textScale
 	}
@@ -2020,18 +1652,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.x end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.x  = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):ClearAnchors()
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, UniversalTracker.Controls[newTracker.id].object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
-				else
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.unitLabel.x 
 	}
@@ -2048,18 +1669,7 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.textSettings.unitLabel.y end,
 		setFunction = function(value) 
 			newTracker.textSettings.unitLabel.y = value
-			if UniversalTracker.Controls[newTracker.id].object then
-				if UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName") then
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):ClearAnchors()
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("UnitName"):SetAnchor(BOTTOM, UniversalTracker.Controls[newTracker.id].object, TOP, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)
-				else
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):ClearAnchors()
-					UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("UnitName"):SetAnchor(BOTTOMLEFT, UniversalTracker.Controls[newTracker.id].object:GetNamedChild("Bar"):GetNamedChild("Background"), TOPLEFT, newTracker.textSettings.unitLabel.x, newTracker.textSettings.unitLabel.y)	
-				end
-			elseif UniversalTracker.Controls[newTracker.id][1] and UniversalTracker.Controls[newTracker.id][1].object then
-				UniversalTracker.refreshList(newTracker, string.gsub(UniversalTracker.Controls[newTracker.id][1].unitTag, "%d+", ""))
-			end
-			temporarilyShowControl(editIndex)
+			previewTracker()
 		end,
 		default = newTracker.textSettings.unitLabel.y
 	}
@@ -2162,26 +1772,29 @@ function UniversalTracker.InitSettings()
 	---		Utilities (Presets)			---
 	---------------------------------------
 
+	local function savePreset(presetTable)
+		local index = getNextAvailableIndex(isCharacterSettings)
+
+		if not isCharacterSettings then
+			UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(presetTable)
+			UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
+			UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
+		else
+			UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(presetTable)
+			UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
+			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
+			UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
+		end
+	end
+
 	local offBalancePreset = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "OFF BALANCE",
 		buttonText = "LOAD",
 		tooltip = "Copies an off balance preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.offBalance)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.offBalance)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.offBalance)
 			makeAnnouncement("Loaded off balance preset.")
 		end
 	}
@@ -2192,20 +1805,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a taunt preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.taunt)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.taunt)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.taunt)
 			makeAnnouncement("Loaded taunt preset.")
 		end
 	}
@@ -2216,20 +1816,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a stagger preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.stagger)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.stagger)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.stagger)
 			makeAnnouncement("Loaded stagger preset.")
 		end
 	}
@@ -2240,19 +1827,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a relentless focus preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.relentlessFocus)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.relentlessFocus)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.relentlessFocus)
 			makeAnnouncement("Loaded relentless focus preset.")
 		end
 	}
@@ -2263,20 +1838,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a Merciless Resolve preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.mercilessResolve)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.mercilessResolve)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.mercilessResolve)
 			makeAnnouncement("Loaded grim focus preset.")
 		end
 	}
@@ -2287,19 +1849,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies an alkosh preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.alkosh)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.alkosh)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.alkosh)
 			makeAnnouncement("Loaded alkosh preset.")
 		end
 	}
@@ -2310,19 +1860,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a martial knowledge preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.mk)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.mk)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.mk)
 			makeAnnouncement("Loaded martial Knowledge preset.")
 		end
 	}
@@ -2333,19 +1871,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a shock weakness knowledge preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.ecShock)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.ecShock)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.ecShock)
 			makeAnnouncement("Loaded Shock Weakness preset.")
 		end
 	}
@@ -2356,19 +1882,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a flame weakness knowledge preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.ecFire)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.ecFire)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.ecFire)
 			makeAnnouncement("Loaded Fire Weakness preset.")
 		end
 	}
@@ -2379,19 +1893,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "Copies a frost weakness knowledge preset into the target save location.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.ecIce)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.ecIce)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.ecIce)
 			makeAnnouncement("Loaded Frost Weakness preset.")
 		end
 	}
@@ -2402,20 +1904,7 @@ function UniversalTracker.InitSettings()
 		buttonText = "LOAD",
 		tooltip = "This tracker will show the cooldown until you can take another combustion / shard synergy.",
 		clickHandler = function(control)
-			local index = getNextAvailableIndex(isCharacterSettings)
-
-			if not isCharacterSettings then
-				UniversalTracker.savedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.synergyCooldown)
-				UniversalTracker.savedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
-			else
-				UniversalTracker.characterSavedVariables.trackerList[index] = ZO_DeepTableCopy(UniversalTracker.presets.synergyCooldown)
-				UniversalTracker.characterSavedVariables.trackerList[index].id = UniversalTracker.savedVariables.nextID
-				UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
-				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
-			end
-			
+			savePreset(UniversalTracker.presets.synergyCooldown)
 			makeAnnouncement("Loaded resource synergy cooldown preset.")
 		end
 	}
@@ -2428,16 +1917,27 @@ function UniversalTracker.InitSettings()
 	settingPages.setupList = {accountSetupsLabel, characterSetupsLabel, navLabel, returnToMainMenuButton}
 	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
-	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setRequiredSetID, setNewTrackerOverrideTexture, appliedBySelf, hideInactive, hideActive, hideTracker,
-									abilityIDListLabel, setNewAbilityID, add1AbilityID, 
-									positionLabel, newScale, newXOffset, newYOffset,
-									textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
-														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
-														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset,
-									navLabel, trackerCancelButton, trackerSaveButton}
+
+	settingPages.newTracker.general = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, 
+										setNewTrackerTargetType, setRequiredSetID, setNewTrackerOverrideTexture, 
+										appliedBySelf, hideInactive, hideActive, hideTracker}
+	settingPages.newTracker.abilities = {abilityIDListLabel, setNewAbilityID, add1AbilityID}
+	settingPages.newTracker.position = {positionLabel, newScale, newXOffset, newYOffset}
+	settingPages.newTracker.columns = {listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}
+	settingPages.newTracker.text = {
+		label = textSettingsLabel,
+		duration = {durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset},
+		stacks = {stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset},
+		abilityName = {abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset},
+		unitName = {unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}
+	}
+	settingPages.newTracker.editedNav = {navLabel, deleteTracker, copyTrackerToCharacter, copyTrackerToAccount, trackerCancelButton, trackerSaveButton}
+	settingPages.newTracker.newNav = {navLabel, setNewTrackerSaveType, trackerCancelButton, trackerSaveButton}
+
 	settingPages.utilities = {printLabel, printItemSets, printCurrentEffects, printTargetEffects, printBossEffects, debugSpam,
-									presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
-									navLabel, returnToMainMenuButton}
+								presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, 
+									mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
+								navLabel, returnToMainMenuButton}
 
 
 	-- I'm resorting to storing and calculating this so 
@@ -2445,12 +1945,7 @@ function UniversalTracker.InitSettings()
 	-- put a setting before the abilityID
 	--
 	-- This is the index of the first abilityID textbox.
-	for k, v in pairs(settingPages.newTracker) do
-		if v.label == "Ability ID" then
-			firstAbilityIDIndex = k
-			break
-		end
-	end
+	firstAbilityIDIndex = #settingPages.newTracker.general + 2
 
 	settings:AddSettings(settingPages.mainMenu)
 end
