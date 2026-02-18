@@ -187,7 +187,7 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 					end
 				end)
 
-			elseif result == ACTION_RESULT_EFFECT_FADED then
+			elseif result == ACTION_RESULT_EFFECT_FADED and not tonumber(settingsTable.textSettings.duration.overrideDuration) then
                 if settingsTable.hideInactive then
                     floatingControl:SetHidden(true)
                 elseif settingsTable.hideActive then
@@ -204,7 +204,8 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 			not (settingsTable.appliedBySelf and sourceType ~= COMBAT_UNIT_TYPE_PLAYER and sourceType ~= COMBAT_UNIT_TYPE_PLAYER_PET) then
 
             if changeType == EFFECT_RESULT_FADED then
-			    
+			    if tonumber(settingsTable.textSettings.duration.overrideDuration) then return end
+
                 --if faded with others running then return.
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i)
