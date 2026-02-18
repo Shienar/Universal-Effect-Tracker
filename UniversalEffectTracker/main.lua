@@ -86,11 +86,7 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	UniversalTracker.ReleaseSingleDisplay(settingsTable)
 
-	if settingsTable.hidden or
-		(tonumber(settingsTable.requiredSetID) and not UniversalTracker.isWearingFullSet(tonumber(settingsTable.requiredSetID)))
-	then
-		return
-	end
+	if settingsTable.hidden or (tonumber(settingsTable.requiredSetID) and not UniversalTracker.isWearingFullSet(tonumber(settingsTable.requiredSetID))) then return end
 
 	local unitTag = nil
 	if settingsTable.targetType == "Player" then
@@ -172,7 +168,6 @@ function UniversalTracker.Initialize()
 	UniversalTracker.floatingPool = ZO_ControlPool:New("SingleFloatingTracker", GuiRoot)
 	UniversalTracker.floatingPool:SetResetFunction(function(control)
 		control:SetHidden(true)
-		control:GetNamedChild("Texture"):Destroy3DRenderSpace()
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_UNIT_DEATH_STATE_CHANGED)

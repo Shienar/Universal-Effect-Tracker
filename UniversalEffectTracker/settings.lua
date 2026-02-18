@@ -166,7 +166,11 @@ local function updateTrackerSettingList(jumpToIndex)
 		appendTables(loadedSettingsList, settingPages.newTracker.text.abilityName)
 		appendTables(loadedSettingsList, settingPages.newTracker.text.unitName)
 	end
-	appendTables(loadedSettingsList, settingPages.newTracker.editedNav)
+	if editIndex == -1 then
+		appendTables(loadedSettingsList, settingPages.newTracker.newNav)
+	else
+		appendTables(loadedSettingsList, settingPages.newTracker.editedNav)
+	end
 	
 	loadMenu(loadedSettingsList, jumpToIndex)
 end
@@ -1237,7 +1241,8 @@ function UniversalTracker.InitSettings()
 			newTracker.x = value
 			previewTracker()
 		end,
-		default = newTracker.x
+		default = newTracker.x,
+		disable = function() return newTracker.type == "Floating" end
 	}
 
 	newYOffset = {
