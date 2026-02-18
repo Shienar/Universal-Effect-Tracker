@@ -1003,8 +1003,8 @@ function UniversalTracker.InitSettings()
 				return
 			end
 
-			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target") then
-				makeAnnouncement("Incompatible target and display types.", "Floating trackers require entities with unit tags.")
+			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target" or newTracker.targetType == "Boss") then
+				makeAnnouncement("Incompatible target and display types.", "Floating trackers are only for you and your group.")
 				return
 			end
 
@@ -1089,8 +1089,8 @@ function UniversalTracker.InitSettings()
 				return
 			end
 
-			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target") then
-				makeAnnouncement("Incompatible target and display types.", "Floating trackers require entities with unit tags.")
+			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target" or newTracker.targetType == "Boss") then
+				makeAnnouncement("Incompatible target and display types.", "Floating trackers are only for you and your group.")
 				return
 			end
 
@@ -1123,9 +1123,9 @@ function UniversalTracker.InitSettings()
 				makeAnnouncement("You must enter at least one ability ID for your tracker.", "A copy was not created.")
 				return
 			end
-			
-			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target") then
-				makeAnnouncement("Incompatible target and display types.", "Floating trackers require entities with unit tags.")
+
+			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target" or newTracker.targetType == "Boss") then
+				makeAnnouncement("Incompatible target and display types.", "Floating trackers are only for you and your group.")
 				return
 			end
 

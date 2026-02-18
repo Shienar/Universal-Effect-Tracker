@@ -51,7 +51,15 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." move "..UniversalTracker.Controls[settingsTable.id].object:GetName())
 		end
 
-		if UniversalTracker.Controls[settingsTable.id] then
+		if UniversalTracker.FloatingControls.list[settingsTable.id] and #UniversalTracker.FloatingControls.list[settingsTable.id] > 0 then
+			for k, v in pairs(UniversalTracker.FloatingControls.list[settingsTable.id]) do
+				UniversalTracker.floatingPool:ReleaseObject(v.key)
+				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."MoveFloatingObject"..v.object:GetName().."Texture")
+				UniversalTracker.FloatingControls.totalFloatingControlCount = UniversalTracker.FloatingControls.totalFloatingControlCount - 1
+			end
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
+		elseif UniversalTracker.Controls[settingsTable.id] then
 			if UniversalTracker.Controls[settingsTable.id][1] or 
 				not next(UniversalTracker.Controls[settingsTable.id]) -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
 			then 
@@ -66,13 +74,7 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 					UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
 				end
 			end
-		elseif UniversalTracker.FloatingControls.list[settingsTable.id] then
-			for k, v in pairs(UniversalTracker.FloatingControls.list[settingsTable.id]) do
-				UniversalTracker.floatingPool:ReleaseObject(v.key)
-				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."MoveFloatingObject"..v.object:GetName().."Texture")
-				UniversalTracker.FloatingControls.totalFloatingControlCount = UniversalTracker.FloatingControls.totalFloatingControlCount - 1
-			end
-		end
+		end 
 
 		if UniversalTracker.FloatingControls.totalFloatingControlCount == 0 then
 			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."RotateFloatingObjects")
@@ -106,7 +108,13 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 	end
 
 	if settingsTable.type == "Floating" then
-		UniversalTracker.InitFloating(settingsTable, unitTag)
+		if unitTag == "player" then
+			UniversalTracker.InitFloating(settingsTable, unitTag)
+		elseif unitTag == "group" then
+			UniversalTracker.RefreshFloatingList(settingsTable, unitTag)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED, function() UniversalTracker.RefreshFloatingList(settingsTable, unitTag) end)
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT, function() UniversalTracker.RefreshFloatingList(settingsTable, unitTag) end)
+		end
 	elseif unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Compact" then
 			UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
@@ -166,6 +174,13 @@ function UniversalTracker.Initialize()
 	end)
 
 	UniversalTracker.floatingPool = ZO_ControlPool:New("SingleFloatingTracker", GuiRoot)
+	UniversalTracker.floatingPool:SetResetFunction(function(control)
+		control:SetHidden(true)
+		control:GetNamedChild("Texture"):Destroy3DRenderSpace()
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_UNIT_DEATH_STATE_CHANGED)
+	end)
 
     UniversalTracker.InitSettings()
 

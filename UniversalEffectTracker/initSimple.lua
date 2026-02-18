@@ -269,7 +269,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 
 				--if faded with others running then return.
 				for i = 1, GetNumBuffs(unitTag) do
-					local _, _, endTime, _, stacks, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i)
+					local _, _, _, _, _, _, _, _, _, _, buffID, _, _ = GetUnitBuffInfo(unitTag, i)
 					if settingsTable.hashedAbilityIDs[buffID] and abilityID ~= buffID then return end
 				end
 			end
