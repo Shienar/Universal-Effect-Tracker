@@ -27,7 +27,14 @@ UniversalTracker.unitIDs = {}
 UniversalTracker.Controls = {}
 UniversalTracker.Animations = {}
 
+-- A seperate table for floating controls instead of UniversalTracker.Controls
+-- Contains subtables at index [id] of {key, object, unitTag}
+UniversalTracker.FloatingControls = { 
+	totalFloatingControlCount = 0,
+	list = {}
+}
 
+--Used for the all target ype.
 --table[unitID] = {{key, trackerID}, {key, trackerID}, ...}
 UniversalTracker.targetIDs_Compact = {}
 UniversalTracker.targetIDs_Bar = {}
@@ -59,8 +66,19 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 					UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
 				end
 			end
+		elseif UniversalTracker.FloatingControls.list[settingsTable.id] then
+			for k, v in pairs(UniversalTracker.FloatingControls.list[settingsTable.id]) do
+				UniversalTracker.floatingPool:ReleaseObject(v.key)
+				EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."MoveFloatingObject"..v.object:GetName().."Texture")
+				UniversalTracker.FloatingControls.totalFloatingControlCount = UniversalTracker.FloatingControls.totalFloatingControlCount - 1
+			end
 		end
 
+		if UniversalTracker.FloatingControls.totalFloatingControlCount == 0 then
+			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."RotateFloatingObjects")
+		end
+
+		UniversalTracker.FloatingControls.list[settingsTable.id] = nil
 		UniversalTracker.Controls[settingsTable.id] = {}
 		UniversalTracker.Animations[settingsTable.id] = {}
 	end
@@ -87,7 +105,9 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 		unitTag = "group"
 	end
 
-	if unitTag == "player" or unitTag == "reticleover" then
+	if settingsTable.type == "Floating" then
+		UniversalTracker.InitFloating(settingsTable, unitTag)
+	elseif unitTag == "player" or unitTag == "reticleover" then
 		if settingsTable.type == "Compact" then
 			UniversalTracker.Controls[settingsTable.id].object, UniversalTracker.Controls[settingsTable.id].key = UniversalTracker.compactPool:AcquireObject()
 
@@ -127,23 +147,25 @@ function UniversalTracker.Initialize()
 
     UniversalTracker.barPool = ZO_ControlPool:New("SingleBarDuration", GuiRoot)
     UniversalTracker.barPool:SetResetFunction(function(control)
-			control:SetHidden(true)
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
-			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+		control:SetHidden(true)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
+		EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 	end)
 
 	UniversalTracker.barAnimationPool = ZO_AnimationPool:New("SingleBarAnimation")
 
 	UniversalTracker.compactPool = ZO_ControlPool:New("SingleCompactTracker", GuiRoot)
     UniversalTracker.compactPool:SetResetFunction(function(control)
-			control:SetHidden(true)
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
-			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
-			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+		control:SetHidden(true)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_RETICLE_TARGET_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_EFFECT_CHANGED)
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..control:GetName(), EVENT_COMBAT_EVENT)
+		EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
 	end)
+
+	UniversalTracker.floatingPool = ZO_ControlPool:New("SingleFloatingTracker", GuiRoot)
 
     UniversalTracker.InitSettings()
 

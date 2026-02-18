@@ -26,6 +26,7 @@ local newTracker = {
 	requiredSetID = "",
 	appliedBySelf = false,
 	hideInactive = false,
+	hideActive = false,
 	hidden = false,
 	x = 0,
 	y = 0,
@@ -189,6 +190,14 @@ local function getNextAvailableIndex(charSettings, isSetup)
 	return index
 end
 
+local function makeAnnouncement(announcementString1, announcementString2)
+	local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
+	messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
+	messageParams:SetText(announcementString1, announcementString2)
+	messageParams:SetLifespanMS(3000)
+	CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+end
+
 function UniversalTracker.loadSetup(id)
 	local idList = nil
 	for k, v in pairs(UniversalTracker.savedVariables.setupList) do
@@ -236,23 +245,6 @@ end
 function UniversalTracker.InitSettings()
 	settings = LibHarvensAddonSettings:AddAddon("Universal Effect Tracker")
 
-	-----------------------------------------------------------
-	---		Early Declarations for Self/Cross References	---
-	-----------------------------------------------------------
-	
-	local setNewAbilityID = nil
-	local add1AbilityID = nil
-	local deleteTracker = nil
-	local deleteSetup = nil
-	local loadSetup = nil
-	local copyTrackerToAccount, copyTrackerToCharacter = nil, nil
-	local copySetupToAccount, copySetupToCharacter = nil, nil
-	local setNewTrackerSaveType = nil
-	local columnCount, horizontalSpacing, verticalSpacing = nil, nil, nil
-	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
-	local hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset  = nil, nil, nil, nil, nil
-	local hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset  = nil, nil, nil, nil, nil, nil
-
 	---------------------------------------
 	---				Labels				---
 	---------------------------------------
@@ -282,7 +274,25 @@ function UniversalTracker.InitSettings()
 	local printLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Print",}
 	local presetLabel = {type = LibHarvensAddonSettings.ST_SECTION, label = "Presets"}
 
+	-----------------------------------------------------------
+	---		Early Declarations for Self/Cross References	---
+	-----------------------------------------------------------
 	
+	local setNewAbilityID = nil
+	local add1AbilityID = nil
+	local deleteTracker = nil
+	local deleteSetup = nil
+	local loadSetup = nil
+	local copyTrackerToAccount, copyTrackerToCharacter = nil, nil
+	local copySetupToAccount, copySetupToCharacter = nil, nil
+	local setNewTrackerSaveType = nil
+	local columnCount, horizontalSpacing, verticalSpacing = nil, nil, nil
+	local newScale, newYOffset, newXOffset = nil, nil, nil
+	local hideDuration, durationFontColor, durationFontScale, durationOverride, durationXOffset, durationYOffset = nil, nil, nil, nil, nil, nil
+	local hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset = nil, nil, nil, nil, nil
+	local hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset  = nil, nil, nil, nil, nil
+	local hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset  = nil, nil, nil, nil, nil, nil
+
 	---------------------------------------
 	---			Navigation Buttons		---
 	---------------------------------------
@@ -550,11 +560,26 @@ function UniversalTracker.InitSettings()
 									settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
 															stacksIndex, false)
 								end
-							else
+							elseif newTracker.type == "Compact" then
 								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
 								if nameIndex then
 									settings:RemoveSettings(nameIndex, 6, false)
 									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+								end
+							elseif newTracker.type == "Floating" then
+								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
+								if nameIndex then
+									settings:RemoveSettings(nameIndex, 6, false)				
+								else
+									local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+									if stacksIndex then
+										settings:RemoveSettings(stacksIndex, 6, false)
+									end
+								end
+
+								local scaleIndex = settings:GetIndexOf(newScale, true)
+								if scaleIndex then
+									settings:RemoveSettings(scaleIndex+1, 17, false)
 								end
 							end
 
@@ -626,11 +651,26 @@ function UniversalTracker.InitSettings()
 									settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
 															stacksIndex, false)
 								end
-							else
+							elseif newTracker.type == "Compact" then
 								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
 								if nameIndex then
 									settings:RemoveSettings(nameIndex, 6, false)
 									settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+								end
+							elseif newTracker.type == "Floating" then	
+								local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
+								if nameIndex then
+									settings:RemoveSettings(nameIndex, 6, false)				
+								else
+									local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+									if stacksIndex then
+										settings:RemoveSettings(stacksIndex, 6, false)
+									end
+								end
+
+								local scaleIndex = settings:GetIndexOf(newScale, true)
+								if scaleIndex then
+									settings:RemoveSettings(scaleIndex+1, 17, false)
 								end
 							end
 
@@ -671,6 +711,7 @@ function UniversalTracker.InitSettings()
 				requiredSetID = "",
 				appliedBySelf = false,
 				hideInactive = false,
+				hideActive = false,
 				hidden = false,
 				x = 0,
 				y = 0,
@@ -797,11 +838,7 @@ function UniversalTracker.InitSettings()
 
 			--Error checking
 			if newSetup.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your setup.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter a name for your setup.", "A copy was not created.")
 				return
 			end
 
@@ -852,11 +889,7 @@ function UniversalTracker.InitSettings()
 
 			UniversalTracker.loadSetup(id)
 
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Setup has been loaded.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Setup has been loaded.")
 		end
 	}
 
@@ -887,11 +920,7 @@ function UniversalTracker.InitSettings()
 
 			--Error checking
 			if newSetup.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your setup.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter a name for your setup.", "A copy was not created.")
 				return
 			end
 
@@ -899,11 +928,7 @@ function UniversalTracker.InitSettings()
 			UniversalTracker.savedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("You have successfully created a new copy of this setup.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("You have successfully created a new copy of this setup.")
 			--Don't load a new menu.
 		end
 	}
@@ -918,23 +943,14 @@ function UniversalTracker.InitSettings()
 
 			--Error checking
 			if newSetup.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your tracker.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter a name for your tracker.", "A copy was not created.")
 				return
 			end
 			UniversalTracker.characterSavedVariables.setupList[index] = ZO_DeepTableCopy(newSetup)
 			UniversalTracker.characterSavedVariables.setupList[index].id = UniversalTracker.savedVariables.nextSetupID
 			UniversalTracker.savedVariables.nextSetupID = UniversalTracker.savedVariables.nextSetupID + 1
 			
-			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("You have successfully created a new copy of this setup.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("You have successfully created a new copy of this setup.")
 			--Don't load a new menu.
 		end
 	}
@@ -979,19 +995,16 @@ function UniversalTracker.InitSettings()
 
 			--Error checking
 			if newTracker.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your tracker.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter a name for your tracker.")
 				return
 			end
 			if not next(newTracker.hashedAbilityIDs) then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter at least one ability ID for your tracker.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter at least one ability ID for your tracker.")
+				return
+			end
+
+			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target") then
+				makeAnnouncement("Incompatible target and display types.", "Floating trackers require entities with unit tags.")
 				return
 			end
 
@@ -1068,19 +1081,16 @@ function UniversalTracker.InitSettings()
 
 			--Error checking
 			if newTracker.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your tracker.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter a name for your tracker.", "A copy was not created.")
 				return
 			end
 			if not next(newTracker.hashedAbilityIDs) then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter at least one ability ID for your tracker.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter at least one ability ID for your tracker.", "A copy was not created.")
+				return
+			end
+
+			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target") then
+				makeAnnouncement("Incompatible target and display types.", "Floating trackers require entities with unit tags.")
 				return
 			end
 
@@ -1090,12 +1100,7 @@ function UniversalTracker.InitSettings()
 			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.savedVariables.trackerList[index]) --Load new changes.
 			
-			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("You have successfully created a new copy of this tracker.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("You have successfully created a new copy of this tracker.")
 			--Don't load a new menu.
 		end
 	}
@@ -1111,19 +1116,16 @@ function UniversalTracker.InitSettings()
 
 			--Error checking
 			if newTracker.name == "" then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter a name for your tracker.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter a name for your tracker.", "A copy was not created.")
 				return
 			end
 			if not next(newTracker.hashedAbilityIDs) then
-				local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-				messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-				messageParams:SetText("You must enter at least one ability ID for your tracker.", "A copy was not created.")
-				messageParams:SetLifespanMS(3000)
-				CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+				makeAnnouncement("You must enter at least one ability ID for your tracker.", "A copy was not created.")
+				return
+			end
+			
+			if newTracker.type == "Floating" and (newTracker.targetType == "All" or newTracker.targetType == "Reticle Target") then
+				makeAnnouncement("Incompatible target and display types.", "Floating trackers require entities with unit tags.")
 				return
 			end
 
@@ -1133,12 +1135,7 @@ function UniversalTracker.InitSettings()
 			UniversalTracker.savedVariables.nextID = UniversalTracker.savedVariables.nextID + 1
 			UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			
-			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("You have successfully created a new copy of this tracker.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("You have successfully created a new copy of this tracker.")
 			--Don't load a new menu.
 		end
 	}
@@ -1161,26 +1158,83 @@ function UniversalTracker.InitSettings()
 	local setNewTrackerType = {
 		type = LibHarvensAddonSettings.ST_DROPDOWN,
 		label = "Tracker Type",
-		tooltip = "Choose the display type.",
+		tooltip = "Choose the display type.\n\nFloating trackers aren't compatible with \"Reticle Target\" or \"All\" target types.",
 		items = {
 			{name = "Compact", data = 1},
 			{name = "Bar", data = 2},
+			{name = "Floating", data = 3},
 		},
 		getFunction = function() return newTracker.type end,
 		setFunction = function(control, itemName, itemData) 
 			newTracker.type = itemName
 			if newTracker.type == "Bar" then
-				local stacksIndex = settings:GetIndexOf(stacksLabel, true)
-				if stacksIndex then
-					settings:RemoveSettings(stacksIndex, 6, false)
-					settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
-										stacksIndex, false)
+				local textLabelIndex = settings:GetIndexOf(textSettingsLabel, true)
+				if not textLabelIndex then
+					local scaleIndex = settings:GetIndexOf(newScale, true)
+					if scaleIndex then
+						settings:AddSettings({newXOffset, newYOffset, textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
+														abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset,
+														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
+												scaleIndex + 1, false)
+					end
+				else
+					local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+					if stacksIndex then
+						settings:RemoveSettings(stacksIndex, 6, false)
+						settings:AddSettings({abilityNameLabel, hideAbilityLabel, abilityLabelFontColor, abilityLabelFontScale, abilityLabelXOffset, abilityLabelYOffset}, 
+											stacksIndex, false)
+					end
 				end
-			else
+
+				if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then		
+					local textIndex = settings:GetIndexOf(textSettingsLabel, true)
+					if  textIndex then
+						settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
+					end
+				end
+			elseif newTracker.type == "Compact" then
+				local textLabelIndex = settings:GetIndexOf(textSettingsLabel, true)
+				if not textLabelIndex then
+					local scaleIndex = settings:GetIndexOf(newScale, true)
+					if scaleIndex then
+						settings:AddSettings({newXOffset, newYOffset, textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,
+														stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset,
+														unitNameLabel, hideunitLabel, preferPlayerName, unitLabelFontColor, unitLabelFontScale, unitLabelXOffset, unitLabelYOffset}, 
+												scaleIndex + 1, false)
+					end
+				else
+					local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
+					if nameIndex then
+						settings:RemoveSettings(nameIndex, 6, false)
+						settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+					end
+				end
+
+				if newTracker.targetType == "Boss" or newTracker.targetType =="Group" or newTracker.targetType == "All" then		
+					local textIndex = settings:GetIndexOf(textSettingsLabel, true)
+					if  textIndex then
+						settings:AddSettings({listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}, textIndex, false)	
+					end
+				end
+			elseif newTracker.type == "Floating" then
+				local listSettingIndex = settings:GetIndexOf(listSettingsLabel, true)
+				if listSettingIndex then
+					settings:RemoveSettings(listSettingIndex, 3, false)
+				end
+
 				local nameIndex = settings:GetIndexOf(abilityNameLabel, true)
 				if nameIndex then
-					settings:RemoveSettings(nameIndex, 6, false)
-					settings:AddSettings({stacksLabel, hideStacks, stackFontColor, stackFontScale, stackXOffset, stackYOffset}, nameIndex, false)				
+					settings:RemoveSettings(nameIndex, 6, false)				
+				else
+					local stacksIndex = settings:GetIndexOf(stacksLabel, true)
+					if stacksIndex then
+						settings:RemoveSettings(stacksIndex, 6, false)
+					end
+				end
+
+				local scaleIndex = settings:GetIndexOf(newScale, true)
+				if scaleIndex then
+					settings:RemoveSettings(scaleIndex, 17, false)
 				end
 			end
 		end,
@@ -1268,14 +1322,29 @@ function UniversalTracker.InitSettings()
 	local hideInactive = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Only Active Effects",
-		tooltip = "Hides the tracker when there are no active effects.",
+		tooltip = "Hides the tracker when there are no active effects.\n\nDoesn't affect trackers with \"All\" target type.",
 		getFunction = function() return newTracker.hideInactive end,
 		setFunction = function(value) 
 			newTracker.hideInactive = value
+			if value then newTracker.hideActive = false end
 
 			--Only updates when user saves tracker.
 		end,
 		default = newTracker.hideInactive
+	}
+
+	local hideActive = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Only Inactive Effects",
+		tooltip = "Only shows the tracker when the effect has fallen off.\n\nDoesn't affect trackers with \"All\" target type.",
+		getFunction = function() return newTracker.hideActive end,
+		setFunction = function(value) 
+			newTracker.hideActive = value
+			if value then newTracker.hideInactive = false end
+
+			--Only updates when user saves tracker.
+		end,
+		default = newTracker.hideActive
 	}
 
 	-- Sets as hidden while in the menu. Hidden trackers get released when the user hits save.
@@ -1352,7 +1421,7 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
-	local newXOffset = {
+	newXOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "X Offset",
 		tooltip = "Modifies the X Offset.",
@@ -1377,7 +1446,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.x
 	}
 
-	local newYOffset = {
+	newYOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Y Offset",
 		tooltip = "Modifies the Y Offset.",
@@ -1402,7 +1471,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.y
 	}
 
-	local newScale = {
+	newScale = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Scale",
 		tooltip = "Modifies the tracker's size.\n",
@@ -1489,7 +1558,7 @@ function UniversalTracker.InitSettings()
 	---			Trackers (Text)		      ---
 	-----------------------------------------
 
-	local hideDuration = {
+	hideDuration = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Hide Duration",
 		tooltip = "Disables the duration countdown display.",
@@ -1508,7 +1577,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.duration.hidden
 	}
 
-	local durationOverride = {
+	durationOverride = {
 		type = LibHarvensAddonSettings.ST_EDIT,
 		label = "Duration Override",
 		tooltip = "Override the ability's duration with this value (in seconds).\n\n\
@@ -1522,7 +1591,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.duration.overrideDuration or ""
 	}
 
-	local durationFontColor = {
+	durationFontColor = {
 		type = LibHarvensAddonSettings.ST_COLOR,
 		label = "Duration Text Color",
 		tooltip = "Choose the duration's text color",
@@ -1544,7 +1613,7 @@ function UniversalTracker.InitSettings()
 		default = {1, 1, 1, 1}
 	}
 
-	local durationFontScale = {
+	durationFontScale = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Duration Text Scale",
 		tooltip = "Modifies the duration's text size.\n",
@@ -1568,7 +1637,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.duration.textScale
 	}
 
-	local durationXOffset = {
+	durationXOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "X Offset",
 		tooltip = "Modifies the Duration's X Offset.",
@@ -1598,7 +1667,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.duration.x 
 	}
 
-	local durationYOffset = {
+	durationYOffset = {
 		type = LibHarvensAddonSettings.ST_SLIDER,
 		label = "Y Offset",
 		tooltip = "Modifies the duration's Y Offset.",
@@ -2113,11 +2182,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded off balance preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded off balance preset.")
 		end
 	}
 
@@ -2141,11 +2206,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded taunt preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded taunt preset.")
 		end
 	}
 
@@ -2169,11 +2230,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded stagger preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded stagger preset.")
 		end
 	}
 
@@ -2196,11 +2253,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded relentless focus preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded relentless focus preset.")
 		end
 	}
 
@@ -2224,11 +2277,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded grim focus preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded grim focus preset.")
 		end
 	}
 
@@ -2251,11 +2300,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded alkosh preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded alkosh preset.")
 		end
 	}
 
@@ -2278,11 +2323,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded martial Knowledge preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded martial Knowledge preset.")
 		end
 	}
 
@@ -2305,11 +2346,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded Shock Weakness preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded Shock Weakness preset.")
 		end
 	}
 
@@ -2332,11 +2369,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded Fire Weakness preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded Fire Weakness preset.")
 		end
 	}
 
@@ -2359,11 +2392,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded Frost Weakness preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded Frost Weakness preset.")
 		end
 	}
 
@@ -2387,11 +2416,7 @@ function UniversalTracker.InitSettings()
 				UniversalTracker.InitSingleDisplay(UniversalTracker.characterSavedVariables.trackerList[index]) --Load new changes.
 			end
 			
-			local messageParams = CENTER_SCREEN_ANNOUNCE:CreateMessageParams(CSA_CATEGORY_LARGE_TEXT, SOUNDS.COLLECTIBLE_UNLOCKED)
-			messageParams:SetCSAType(CENTER_SCREEN_ANNOUNCE_TYPE_COLLECTIBLES_UPDATED)
-			messageParams:SetText("Loaded resource synergy cooldown preset.")
-			messageParams:SetLifespanMS(1500)
-			CENTER_SCREEN_ANNOUNCE:AddMessageWithParams(messageParams)
+			makeAnnouncement("Loaded resource synergy cooldown preset.")
 		end
 	}
 
@@ -2403,7 +2428,7 @@ function UniversalTracker.InitSettings()
 	settingPages.setupList = {accountSetupsLabel, characterSetupsLabel, navLabel, returnToMainMenuButton}
 	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
-	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setRequiredSetID, setNewTrackerOverrideTexture, appliedBySelf, hideInactive, hideTracker,
+	settingPages.newTracker = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setRequiredSetID, setNewTrackerOverrideTexture, appliedBySelf, hideInactive, hideActive, hideTracker,
 									abilityIDListLabel, setNewAbilityID, add1AbilityID, 
 									positionLabel, newScale, newXOffset, newYOffset,
 									textSettingsLabel, durationLabel, hideDuration, durationOverride, durationFontColor, durationFontScale, durationXOffset, durationYOffset,

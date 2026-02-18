@@ -81,5 +81,11 @@
                 </Texture>
             </Controls>
         </TopLevelControl>
+
+        <TopLevelControl name="SingleFloatingTracker" hidden="false" virtual="true" resizeToFitDescendents="true" scale="1" layer="BACKGROUND">
+            <Controls>
+                <Texture name="$(parent)Texture" textureFile="/esoui/art/icons/icon_missing.dds" />
+            </Controls>
+        </TopLevelControl>
     </Controls>
 </GuiXml>
