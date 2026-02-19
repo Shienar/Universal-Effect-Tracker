@@ -97,19 +97,7 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 						if duration < 0 then
 							--Effect Expired
 							EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())
-							if settingsTable.overrideTexturePath == "" then
-								textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-							else
-								textureControl:SetTexture(settingsTable.overrideTexturePath)
-							end
 							durationControl:SetText("")
-                            if not settingsTable.hidden then
-                                if settingsTable.hideInactive then
-                                    floatingControl:SetHidden(true)
-                                elseif settingsTable.hideActive then
-                                    if HUD_FRAGMENT.status ~= "hidden" then floatingControl:SetHidden(settingsTable.hidden) end
-                                end
-                             end
 						else
 							if duration < 2 then
 								durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -167,17 +155,7 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 					if duration < 0 then
 						--Effect Expired
 						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())
-						if settingsTable.overrideTexturePath == "" then
-							textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-						else
-							textureControl:SetTexture(settingsTable.overrideTexturePath)
-						end
 						durationControl:SetText("")
-                        if settingsTable.hideInactive then
-                            control:SetHidden(true)
-                        elseif settingsTable.hideActive then
-                            if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                        end
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -240,21 +218,8 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 					local duration = (endTime-GetGameTimeMilliseconds())/1000
 					if duration < 0 then
 						--Effect Expired
-						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())
-						if settingsTable.overrideTexturePath == "" then
-							textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-						else
-							textureControl:SetTexture(settingsTable.overrideTexturePath)
-						end
+						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())				
 						durationControl:SetText("")
-						if not settingsTable.hidden then
-                            if settingsTable.hideInactive then
-                                floatingControl:SetHidden(true)
-                            elseif settingsTable.hideActive then
-                                if HUD_FRAGMENT.status ~= "hidden" then floatingControl:SetHidden(settingsTable.hidden) end
-                            end
-                            UniversalTracker.UpdateListAnchors(settingsTable)
-                        end
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
