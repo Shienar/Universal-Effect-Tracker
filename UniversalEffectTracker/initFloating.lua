@@ -109,12 +109,11 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
                 end
                 break
             end
-        end
-        
-        if settingsTable.hideInactive then
-            floatingControl:SetHidden(true)
-        elseif settingsTable.hideActive then
-            if HUD_FRAGMENT.status ~= "hidden" then floatingControl:SetHidden(false) end
+            if settingsTable.hideInactive then
+                floatingControl:SetHidden(true)
+            elseif settingsTable.hideActive then
+                if HUD_FRAGMENT.status ~= "hidden" then floatingControl:SetHidden(false) end
+            end
         end
     end
 
