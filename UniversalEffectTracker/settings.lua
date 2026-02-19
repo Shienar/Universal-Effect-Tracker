@@ -119,9 +119,11 @@ local newSetup = {
 
 local function createHashedIDList(settingAbilityIDs)
 	local hashedAbilityIDs = {}
-	for k, v in pairs(settingAbilityIDs) do
-		if tonumber(v) then
-			hashedAbilityIDs[tonumber(v)] = true
+	for i = #settingAbilityIDs, 1, -1 do 
+		if tonumber(settingAbilityIDs[i]) then
+			hashedAbilityIDs[tonumber(settingAbilityIDs[i])] = true
+		else
+			table.remove(settingAbilityIDs, i)
 		end
 	end
 	return hashedAbilityIDs
@@ -565,7 +567,7 @@ function UniversalTracker.InitSettings()
 										-- This set function gets executed twice (same millisecond) but we only want to run this once.
 										EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
 											settings:RemoveSettings(LibHarvensAddonSettings.scrollList.lists.Main.selectedIndex, 1, false)
-											newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
+											newTracker.abilityIDs[i] = "MARKED FOR REMOVAL" --removal requires shifting, wait until page gets unloaded.
 											EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex)
 										end)
 									end
@@ -573,7 +575,6 @@ function UniversalTracker.InitSettings()
 								default = newTracker.abilityIDs[i]
 							}, newIndex, false)
 						end
-
 					end
 				}, #settings.settings - insertOffset, false)
 			end
@@ -1203,16 +1204,16 @@ function UniversalTracker.InitSettings()
 		tooltip = "Adds an ability ID that you can track.",
 		clickHandler = function(control)
 			local newIndex = settings:GetIndexOf(add1AbilityID, true)
-			newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = ""
+			newTracker.abilityIDs[newIndex - firstAbilityIDIndex + 1] = ""
 			settings:AddSetting({
 				type = setNewAbilityID.type,
 				label = setNewAbilityID.label,
 				tooltip = setNewAbilityID.tooltip,
 				textType = setNewAbilityID.textType,
 				maxChars = setNewAbilityID.maxChars,
-				getFunction = function() return newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] end,
+				getFunction = function() return newTracker.abilityIDs[newIndex - firstAbilityIDIndex + 1] end,
 				setFunction = function(value) 
-					newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1] = value
+					newTracker.abilityIDs[newIndex - firstAbilityIDIndex + 1] = value
 					if value == "0" then
 						-- This set function gets executed twice (same millisecond) but we only want to run this once.
 						EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.." delete ability at index "..newIndex, 20, function()
@@ -1222,7 +1223,7 @@ function UniversalTracker.InitSettings()
 						end)
 					end
 				end,
-				default = newTracker.abilityIDs[newIndex - firstAbilityIDIndex - 1]
+				default = newTracker.abilityIDs[newIndex - firstAbilityIDIndex + 1]
 			}, newIndex, false)
 		end
 	}
