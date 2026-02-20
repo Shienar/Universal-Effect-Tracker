@@ -133,28 +133,29 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 				
                 UniversalTracker.updateVisibility(floatingControl, true, settingsTable)
 
-                local endTime
-				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
-					endTime = GetGameTimeMilliseconds() + (1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
-				else
-					endTime = GetGameTimeMilliseconds() + hitValue
-				end
-				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..floatingControl:GetName(), 100, function()
-					local duration = (endTime-GetGameTimeMilliseconds())/1000
-					if duration < 0 then
-						--Effect Expired
-						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())
-						durationControl:SetText("")
-                        UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
-					else
-						if duration < 2 then
-							durationControl:SetText(zo_roundToNearest(duration, 0.1))
-						else
-							durationControl:SetText(zo_roundToZero(duration))
-						end
-					end
-				end)
-
+                if not IsAbilityPermanent(abilityID) then
+                    local endTime
+                    if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+                        endTime = GetGameTimeMilliseconds() + (1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
+                    else
+                        endTime = GetGameTimeMilliseconds() + hitValue
+                    end
+                    EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..floatingControl:GetName(), 100, function()
+                        local duration = (endTime-GetGameTimeMilliseconds())/1000
+                        if duration < 0 then
+                            --Effect Expired
+                            EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())
+                            durationControl:SetText("")
+                            UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
+                        else
+                            if duration < 2 then
+                                durationControl:SetText(zo_roundToNearest(duration, 0.1))
+                            else
+                                durationControl:SetText(zo_roundToZero(duration))
+                            end
+                        end
+                    end)
+                end
 			elseif result == ACTION_RESULT_EFFECT_FADED and not tonumber(settingsTable.textSettings.duration.overrideDuration) then
                 UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
             end
@@ -188,26 +189,28 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 
                 UniversalTracker.updateVisibility(floatingControl, true, settingsTable)
 
-                if tonumber(settingsTable.textSettings.duration.overrideDuration) then
-					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
-				end
-				endTime = endTime * 1000
-				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..floatingControl:GetName(), 100, function()
-					local duration = (endTime-GetGameTimeMilliseconds())/1000
-					if duration < 0 then
-						--Effect Expired
-						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())				
-						durationControl:SetText("")
-                        
-                        UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
-					else
-						if duration < 2 then
-							durationControl:SetText(zo_roundToNearest(duration, 0.1))
-						else
-							durationControl:SetText(zo_roundToZero(duration))
-						end
-					end
-				end)
+                if not IsAbilityPermanent(abilityID) then
+                    if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+                        endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+                    end
+                    endTime = endTime * 1000
+                    EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..floatingControl:GetName(), 100, function()
+                        local duration = (endTime-GetGameTimeMilliseconds())/1000
+                        if duration < 0 then
+                            --Effect Expired
+                            EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())				
+                            durationControl:SetText("")
+                            
+                            UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
+                        else
+                            if duration < 2 then
+                                durationControl:SetText(zo_roundToNearest(duration, 0.1))
+                            else
+                                durationControl:SetText(zo_roundToZero(duration))
+                            end
+                        end
+                    end)
+                end
             end
         end
     end)

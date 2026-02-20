@@ -67,12 +67,8 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 		for i = 1, GetNumBuffs(unitTag) do
 			local _, startTime, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
 			if settingsTable.hashedAbilityIDs[abilityId] then
-                UniversalTracker.updateVisibility(control, false, settingsTable)
+                UniversalTracker.updateVisibility(control, true, settingsTable)
 
-				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
-					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
-				end
-				endTime = endTime*1000
 				if stacks == 0 then stacks = "" end
 				stackControl:SetText(stacks)
 				if settingsTable.overrideTexturePath == "" then
@@ -81,6 +77,10 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 				if not IsAbilityPermanent(abilityId) then
+                    if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+                        endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+                    end
+                    endTime = endTime*1000
 					EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 						local duration = (endTime-GetGameTimeMilliseconds())/1000
 						if duration < 0 then
@@ -122,10 +122,6 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 					if settingsTable.hashedAbilityIDs[abilityId] then
                         UniversalTracker.updateVisibility(control, true, settingsTable)
 
-						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
-							endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
-						end
-						endTime = endTime*1000
 						if stacks == 0 then stacks = "" end
 						stackControl:SetText(stacks)
 						if settingsTable.overrideTexturePath == "" then
@@ -134,6 +130,10 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 							textureControl:SetTexture(settingsTable.overrideTexturePath)
 						end
 						if not IsAbilityPermanent(abilityId) then
+                            if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+                                endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+                            end
+                            endTime = endTime*1000
 							EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 								local duration = (endTime-GetGameTimeMilliseconds())/1000
 								if duration < 0 then
@@ -198,33 +198,35 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
 
-				local endTime
-				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
-					endTime = GetGameTimeMilliseconds() + (1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
-				else
-					endTime = GetGameTimeMilliseconds() + hitValue
-				end
-				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
-					local duration = (endTime-GetGameTimeMilliseconds())/1000
-					if duration < 0 then
-						--Effect Expired
-						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-						if settingsTable.overrideTexturePath == "" then
-							textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-						else
-							textureControl:SetTexture(settingsTable.overrideTexturePath)
-						end
-						durationControl:SetText("")
-						stackControl:SetText("")
-                        UniversalTracker.updateVisibility(control, false, settingsTable)
-					else
-						if duration < 2 then
-							durationControl:SetText(zo_roundToNearest(duration, 0.1))
-						else
-							durationControl:SetText(zo_roundToZero(duration))
-						end
-					end
-				end)
+                if not IsAbilityPermanent(abilityID) then
+                    local endTime
+                    if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+                        endTime = GetGameTimeMilliseconds() + (1000*tonumber(settingsTable.textSettings.duration.overrideDuration))
+                    else
+                        endTime = GetGameTimeMilliseconds() + hitValue
+                    end
+                    EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
+                        local duration = (endTime-GetGameTimeMilliseconds())/1000
+                        if duration < 0 then
+                            --Effect Expired
+                            EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+                            if settingsTable.overrideTexturePath == "" then
+                                textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
+                            else
+                                textureControl:SetTexture(settingsTable.overrideTexturePath)
+                            end
+                            durationControl:SetText("")
+                            stackControl:SetText("")
+                            UniversalTracker.updateVisibility(control, false, settingsTable)
+                        else
+                            if duration < 2 then
+                                durationControl:SetText(zo_roundToNearest(duration, 0.1))
+                            else
+                                durationControl:SetText(zo_roundToZero(duration))
+                            end
+                        end
+                    end)
+                end
 			end
 		end
 	end)
@@ -250,34 +252,36 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 			else
 				textureControl:SetTexture(settingsTable.overrideTexturePath)
 			end
-			if changeType ~= EFFECT_RESULT_FADED and not IsAbilityPermanent(abilityID) then
-				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
-					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
-				end
-				endTime = endTime * 1000
+			if changeType ~= EFFECT_RESULT_FADED then
                 UniversalTracker.updateVisibility(control, true, settingsTable)
-				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
-					local duration = (endTime-GetGameTimeMilliseconds())/1000
-					if duration < 0 then
-						--Effect Expired
-						EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
-						if settingsTable.overrideTexturePath == "" then
-							textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
-						else
-							textureControl:SetTexture(settingsTable.overrideTexturePath)
-						end
-						durationControl:SetText("")
-						stackControl:SetText("")
-                        UniversalTracker.updateVisibility(control, false, settingsTable)
-					else
-						if duration < 2 then
-							durationControl:SetText(zo_roundToNearest(duration, 0.1))
-						else
-							durationControl:SetText(zo_roundToZero(duration))
-						end
-					end
-				end)
-			elseif changeType == EFFECT_RESULT_FADED and IsAbilityPermanent(abilityID) then
+                if not IsAbilityPermanent(abilityID) then
+                    if tonumber(settingsTable.textSettings.duration.overrideDuration) then
+                        endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
+                    end
+                    endTime = endTime * 1000
+                    EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
+                        local duration = (endTime-GetGameTimeMilliseconds())/1000
+                        if duration < 0 then
+                            --Effect Expired
+                            EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..control:GetName())
+                            if settingsTable.overrideTexturePath == "" then
+                                textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
+                            else
+                                textureControl:SetTexture(settingsTable.overrideTexturePath)
+                            end
+                            durationControl:SetText("")
+                            stackControl:SetText("")
+                            UniversalTracker.updateVisibility(control, false, settingsTable)
+                        else
+                            if duration < 2 then
+                                durationControl:SetText(zo_roundToNearest(duration, 0.1))
+                            else
+                                durationControl:SetText(zo_roundToZero(duration))
+                            end
+                        end
+                    end)
+                end
+			elseif changeType == EFFECT_RESULT_FADED then
 				if settingsTable.overrideTexturePath == "" then
 					textureControl:SetTexture(GetAbilityIcon(next(settingsTable.hashedAbilityIDs)))
 				else
