@@ -1,12 +1,30 @@
 UniversalTracker = UniversalTracker or {}
 
+function UniversalTracker.updateVisibility(control, isActive, settingsTable)
+    if isActive then
+        if settingsTable.hideInactive then
+            if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
+        elseif settingsTable.hideActive then
+            control:SetHidden(true)
+        end
+    else
+        if settingsTable.hideInactive then
+            control:SetHidden(true)
+        elseif settingsTable.hideActive then
+            if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
+        end
+    end
+
+    UniversalTracker.UpdateListAnchors(settingsTable)
+end
+
 function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 	-- Assign values to created controls.
 
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
-	if settingsTable.hideInactive or HUD_FRAGMENT.status == "hidden" then control:SetHidden(true) else control:SetHidden(settingsTable.hidden) end
+	if settingsTable.hideInactive or HUD_FRAGMENT.state == "hidden" then control:SetHidden(true) else control:SetHidden(false) end
 
 	local textureControl = control:GetNamedChild("Texture")
 	local durationControl = control:GetNamedChild("Duration")
@@ -49,14 +67,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 		for i = 1, GetNumBuffs(unitTag) do
 			local _, startTime, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
 			if settingsTable.hashedAbilityIDs[abilityId] then
-                if not settingsTable.hidden then
-                    if settingsTable.hideInactive then
-                        control:SetHidden(true)
-                    elseif settingsTable.hideActive then
-                        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
-                end
+                UniversalTracker.updateVisibility(control, false, settingsTable)
 
 				if tonumber(settingsTable.textSettings.duration.overrideDuration) then
 					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
@@ -82,14 +93,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 							end
 							durationControl:SetText("")
 							stackControl:SetText("")
-                            if not settingsTable.hidden then
-                                if settingsTable.hideInactive then
-                                    control:SetHidden(true)
-                                elseif settingsTable.hideActive then
-                                    if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                                end
-                                UniversalTracker.UpdateListAnchors(settingsTable)
-                             end
+                            UniversalTracker.updateVisibility(control, false, settingsTable)
 						else
 							if duration < 2 then
 								durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -116,14 +120,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 				for i = 1, GetNumBuffs(unitTag) do
 					local _, startTime, endTime, _, stacks, _, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo(unitTag, i)
 					if settingsTable.hashedAbilityIDs[abilityId] then
-						if not settingsTable.hidden then
-                            if settingsTable.hideInactive then
-                                if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                            elseif settingsTable.hideActive then
-                                control:SetHidden(true)
-                            end
-                            UniversalTracker.UpdateListAnchors(settingsTable)
-                        end
+                        UniversalTracker.updateVisibility(control, true, settingsTable)
 
 						if tonumber(settingsTable.textSettings.duration.overrideDuration) then
 							endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
@@ -149,14 +146,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 									end
 									durationControl:SetText("")
 									stackControl:SetText("")
-                                    if not settingsTable.hidden then
-                                        if settingsTable.hideInactive then
-                                            control:SetHidden(true)
-                                        elseif settingsTable.hideActive then
-                                            if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                                        end
-                                        UniversalTracker.UpdateListAnchors(settingsTable)
-                                    end
+                                    UniversalTracker.updateVisibility(control, false, settingsTable)
 
 								else
 									if duration < 2 then
@@ -180,14 +170,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
-                if not settingsTable.hidden then
-                    if settingsTable.hideInactive then
-                        control:SetHidden(true)
-                    elseif settingsTable.hideActive then
-                        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
-                end
+                UniversalTracker.updateVisibility(control, false, settingsTable)
 			end
 		end)
 	end
@@ -204,14 +187,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 			end
 
 			if result == ACTION_RESULT_EFFECT_GAINED or result == ACTION_RESULT_EFFECT_GAINED_DURATION then
-				if not settingsTable.hidden then
-                    if settingsTable.hideInactive then
-                        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                    elseif settingsTable.hideActive then
-                        control:SetHidden(true)
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
-                end
+                UniversalTracker.updateVisibility(control, true, settingsTable)
 
 				-- Can't get stack information, assume no stacks.
 				stackControl:SetText("")
@@ -240,14 +216,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 						end
 						durationControl:SetText("")
 						stackControl:SetText("")
-						if not settingsTable.hidden then
-                            if settingsTable.hideInactive then
-                                control:SetHidden(true)
-                            elseif settingsTable.hideActive then
-                                if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                            end
-                            UniversalTracker.UpdateListAnchors(settingsTable)
-                        end
+                        UniversalTracker.updateVisibility(control, false, settingsTable)
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -286,14 +255,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 					endTime = startTime + tonumber(settingsTable.textSettings.duration.overrideDuration)
 				end
 				endTime = endTime * 1000
-				if not settingsTable.hidden then
-                    if settingsTable.hideInactive then
-                        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                    elseif settingsTable.hideActive then
-                        control:SetHidden(true)
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
-                end
+                UniversalTracker.updateVisibility(control, true, settingsTable)
 				EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name..control:GetName(), 100, function()
 					local duration = (endTime-GetGameTimeMilliseconds())/1000
 					if duration < 0 then
@@ -306,14 +268,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 						end
 						durationControl:SetText("")
 						stackControl:SetText("")
-						if not settingsTable.hidden then
-                            if settingsTable.hideInactive then
-                                control:SetHidden(true)
-                            elseif settingsTable.hideActive then
-                                if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                            end
-                            UniversalTracker.UpdateListAnchors(settingsTable)
-                        end
+                        UniversalTracker.updateVisibility(control, false, settingsTable)
 					else
 						if duration < 2 then
 							durationControl:SetText(zo_roundToNearest(duration, 0.1))
@@ -330,14 +285,7 @@ function UniversalTracker.InitCompact(settingsTable, unitTag, control)
 				end
 				durationControl:SetText("")
 				stackControl:SetText("")
-                if not settingsTable.hidden then
-                    if settingsTable.hideInactive then
-                        control:SetHidden(true)
-                    elseif settingsTable.hideActive then
-                        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
-                end
+                UniversalTracker.updateVisibility(control, false, settingsTable)
 			end
 		end
 	end)
@@ -349,7 +297,7 @@ function UniversalTracker.InitBar(settingsTable, unitTag, control, animation)
 	control:ClearAnchors()
 	control:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	control:SetScale(settingsTable.scale)
-	if settingsTable.hideInactive or HUD_FRAGMENT.hidden == "hidden" then control:SetHidden(true) else control:SetHidden(settingsTable.hidden) end
+	if settingsTable.hideInactive or HUD_FRAGMENT.state == "hidden" then control:SetHidden(true) else control:SetHidden(false) end
 
 	local textureControl = control:GetNamedChild("Texture")
 	local barControl = control:GetNamedChild("Bar")
@@ -362,27 +310,18 @@ function UniversalTracker.InitBar(settingsTable, unitTag, control, animation)
 	end
 
 	animation:GetAnimation(1):SetHandler("OnPlay", function()
-        if not settingsTable.hidden then
-            if settingsTable.hideInactive then
-                if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
-            elseif settingsTable.hideActive then
-                control:SetHidden(true)
-            end
-            UniversalTracker.UpdateListAnchors(settingsTable)
-        end
+        UniversalTracker.updateVisibility(control, true, settingsTable)
 	end)
 
 	animation:GetAnimation(1):SetHandler("OnStop", function()
         if settingsTable.hideActive then
-            if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) end
+            if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
         else
             zo_callLater(function()
-                if not settingsTable.hidden then
-                    if settingsTable.hideInactive and durationControl:GetText() == "0" then
-                        control:SetHidden(true)
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
+                if settingsTable.hideInactive and durationControl:GetText() == "0" then
+                    control:SetHidden(true)
                 end
+                UniversalTracker.UpdateListAnchors(settingsTable)
             end, 150)
         end
 	end)
@@ -492,14 +431,7 @@ function UniversalTracker.InitBar(settingsTable, unitTag, control, animation)
 				animation:PlayInstantlyToEnd()
 
 				--Bypass the 150ms wait animation.
-                if not settingsTable.hidden then
-                    if settingsTable.hideInactive then
-                        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(true) end
-                    elseif settingsTable.hideActive then
-                        control:SetHidden(settingsTable.hidden)
-                    end
-                    UniversalTracker.UpdateListAnchors(settingsTable)
-                end
+                UniversalTracker.updateVisibility(control, false, settingsTable)
 			end
 		end)
 	end
@@ -650,7 +582,7 @@ function UniversalTracker.InitAll(settingsTable)
                         --Settings
                         --A bit redundant from the Init functions but its made to not use unitTags.
                         control:SetScale(settingsTable.scale)
-				        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) else control:SetHidden(true) end
+				        if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) else control:SetHidden(true) end
                         local textureControl = control:GetNamedChild("Texture")
                         local durationControl = control:GetNamedChild("Duration")
                         local stackControl = control:GetNamedChild("Stacks")
@@ -795,7 +727,7 @@ function UniversalTracker.InitAll(settingsTable)
                         --Settings
                         --A bit redundant from the Init functions but its made to not use unitTags.
                         control:SetScale(settingsTable.scale)
-				        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) else control:SetHidden(true) end
+				        if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) else control:SetHidden(true) end
                         local textureControl = control:GetNamedChild("Texture")
                         local durationControl = control:GetNamedChild("Duration")
                         local stackControl = control:GetNamedChild("Stacks")
@@ -958,7 +890,7 @@ function UniversalTracker.InitAll(settingsTable)
                         --Settings
                         --A bit redundant from the Init functions but its made to not use unitTags.
                         control:SetScale(settingsTable.scale)
-				        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) else control:SetHidden(true) end
+				        if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) else control:SetHidden(true) end
 
                         local textureControl = control:GetNamedChild("Texture")
                         local barControl = control:GetNamedChild("Bar")
@@ -1116,7 +1048,7 @@ function UniversalTracker.InitAll(settingsTable)
                         --Settings
                         --A bit redundant from the Init functions but its made to not rely on unitTags.
                         control:SetScale(settingsTable.scale)
-				        if HUD_FRAGMENT.status ~= "hidden" then control:SetHidden(settingsTable.hidden) else control:SetHidden(true) end
+				        if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) else control:SetHidden(true) end
 
                         local textureControl = control:GetNamedChild("Texture")
                         local barControl = control:GetNamedChild("Bar")

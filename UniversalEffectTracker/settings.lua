@@ -1751,8 +1751,7 @@ function UniversalTracker.InitSettings()
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Event Spam",
 		tooltip = "Registers with EVENT_COMBAT_EVENT to print all detected effect changes into the chat.\n\
-					THIS WILL CRASH YOUR FPS IF USED IN GROUP CONTENT.\n\
-					ONLY USED IT FOR TESTING FOR SPECIFIC ABILITY IDS",
+					May cause lag in group content.",
 		getFunction = function() return spamRegistered end,
 		setFunction = function(value)
 			spamRegistered = value
@@ -1794,126 +1793,30 @@ function UniversalTracker.InitSettings()
 		end
 	end
 
-	local offBalancePreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "OFF BALANCE",
-		buttonText = "LOAD",
-		tooltip = "Copies an off balance preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.offBalance)
-			makeAnnouncement("Loaded off balance preset.")
-		end
-	}
+	local function generatePreset(presetName, presetTable)
+		return {
+			type = LibHarvensAddonSettings.ST_BUTTON,
+			label = string.upper(presetName),
+			buttonText = "LOAD",
+			tooltip = "Copies an "..string.lower(presetName).." preset into the target save location.",
+			clickHandler = function(control)
+				savePreset(presetTable)
+				makeAnnouncement("Loaded "..string.lower(presetName).." preset.")
+			end
+		}
+	end
 
-	local tauntPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "TAUNT",
-		buttonText = "LOAD",
-		tooltip = "Copies a taunt preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.taunt)
-			makeAnnouncement("Loaded taunt preset.")
-		end
-	}
-
-	local staggerPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "STAGGER",
-		buttonText = "LOAD",
-		tooltip = "Copies a stagger preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.stagger)
-			makeAnnouncement("Loaded stagger preset.")
-		end
-	}
-
-	local relentlessPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "Relentless Focus",
-		buttonText = "LOAD",
-		tooltip = "Copies a relentless focus preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.relentlessFocus)
-			makeAnnouncement("Loaded relentless focus preset.")
-		end
-	}
-
-	local mercilessPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "Merciless Resolve",
-		buttonText = "LOAD",
-		tooltip = "Copies a Merciless Resolve preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.mercilessResolve)
-			makeAnnouncement("Loaded grim focus preset.")
-		end
-	}
-
-	local alkoshPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "Alkosh",
-		buttonText = "LOAD",
-		tooltip = "Copies an alkosh preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.alkosh)
-			makeAnnouncement("Loaded alkosh preset.")
-		end
-	}
-
-	local mkPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "Martial Knowledge",
-		buttonText = "LOAD",
-		tooltip = "Copies a martial knowledge preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.mk)
-			makeAnnouncement("Loaded martial Knowledge preset.")
-		end
-	}
-
-	local ecShockPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "EC (Shock) Preset",
-		buttonText = "LOAD",
-		tooltip = "Copies a shock weakness knowledge preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.ecShock)
-			makeAnnouncement("Loaded Shock Weakness preset.")
-		end
-	}
-
-	local ecFlamePreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "EC (Flame) Preset",
-		buttonText = "LOAD",
-		tooltip = "Copies a flame weakness knowledge preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.ecFire)
-			makeAnnouncement("Loaded Fire Weakness preset.")
-		end
-	}
-
-	local ecIcePreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "EC (Frost) Preset",
-		buttonText = "LOAD",
-		tooltip = "Copies a frost weakness knowledge preset into the target save location.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.ecIce)
-			makeAnnouncement("Loaded Frost Weakness preset.")
-		end
-	}
-
-	local synergyPreset = {
-		type = LibHarvensAddonSettings.ST_BUTTON,
-		label = "Resource Synergy",
-		buttonText = "LOAD",
-		tooltip = "This tracker will show the cooldown until you can take another combustion / shard synergy.",
-		clickHandler = function(control)
-			savePreset(UniversalTracker.presets.synergyCooldown)
-			makeAnnouncement("Loaded resource synergy cooldown preset.")
-		end
-	}
+	local offBalancePreset = generatePreset("off balance", UniversalTracker.presets.offBalance)
+	local tauntPreset = generatePreset("taunt", UniversalTracker.presets.taunt)
+	local staggerPreset = generatePreset("stagger", UniversalTracker.presets.stagger)
+	local relentlessPreset = generatePreset("relentless focus", UniversalTracker.presets.relentlessFocus)
+	local mercilessPreset = generatePreset("stagger", UniversalTracker.presets.mercilessResolve)
+	local alkoshPreset = generatePreset("alkosh", UniversalTracker.presets.alkosh)
+	local mkPreset = generatePreset("stagger", UniversalTracker.presets.mk)
+	local ecFlamePreset = generatePreset("ec (flame)", UniversalTracker.presets.ecFire)
+	local ecShockPreset = generatePreset("ec (shock)", UniversalTracker.presets.ecShock)
+	local ecIcePreset = generatePreset("ec (ice)", UniversalTracker.presets.ecIce)
+	local synergyPreset = generatePreset("resource synergy", UniversalTracker.presets.synergyCooldown)
 
 	---------------------------------------
 	---			Menu Groupings			---
