@@ -216,11 +216,10 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
     end)
 
     EVENT_MANAGER:RegisterForEvent(UniversalTracker.name..floatingControl:GetName(), EVENT_UNIT_DEATH_STATE_CHANGED, function(_, tag, isDead)
-        if isDead == false then
+        if isDead == false and tag == unitTag then
             if settingsTable.hideInactive then durationControl:SetText("") end
             UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
         end
     end)
-	EVENT_MANAGER:AddFilterForEvent(UniversalTracker.name..settingsTable.id, EVENT_UNIT_DEATH_STATE_CHANGED, REGISTER_FILTER_UNIT_TAG, unitTag)
     
 end

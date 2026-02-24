@@ -3,7 +3,8 @@ UniversalTracker = UniversalTracker or {}
 function UniversalTracker.updateVisibility(control, isActive, settingsTable)
     if isActive then
         if settingsTable.hideInactive then
-            if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
+            if settingsTable.type == "Floating" then control:SetHidden(false)
+            elseif HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
         elseif settingsTable.hideActive then
             control:SetHidden(true)
         end
@@ -11,7 +12,8 @@ function UniversalTracker.updateVisibility(control, isActive, settingsTable)
         if settingsTable.hideInactive then
             control:SetHidden(true)
         elseif settingsTable.hideActive then
-            if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
+            if settingsTable.type == "Floating" then control:SetHidden(false)
+            elseif HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
         end
     end
 

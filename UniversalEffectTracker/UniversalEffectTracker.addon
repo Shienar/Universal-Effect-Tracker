@@ -4,7 +4,8 @@
 ## AddOnVersion: 20104
 ## Version: 2.1.4
 ## IsLibrary: False
-## ConsoleDependsOn: LibHarvensAddonSettings>=20004 LibChatMessage LibRadialMenu
+## OptionalDependsOn: LibHarvensAddonSettings>=20004 LibRadialMenu
+## ConsoleDependsOn: LibChatMessage
 ## SavedVariables: UniversalTrackerSavedVariables
 
 templates.xml

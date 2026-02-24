@@ -272,6 +272,8 @@ local function previewTracker()
 end
 
 function UniversalTracker.InitSettings()
+	if not LibHarvensAddonSettings then return end
+
 	settings = LibHarvensAddonSettings:AddAddon("Universal Effect Tracker")
 
 	---------------------------------------

@@ -192,17 +192,20 @@ function UniversalTracker.Initialize()
 		end
 	end
 
-	LibRadialMenu:RegisterAddon(UniversalTracker.name, UniversalTracker.name)
-	for k, v in pairs(UniversalTracker.savedVariables.setupList) do
-		if v and v.id and v.name then
-			LibRadialMenu:RegisterEntry(UniversalTracker.name, v.name, tostring(v.id), "EsoUI/Art/Notifications/notificationIcon_duel.dds", function() UniversalTracker.loadSetup(v.id) end, "Load this setup.")
+	if LibRadialMenu then
+		LibRadialMenu:RegisterAddon(UniversalTracker.name, UniversalTracker.name)
+		for k, v in pairs(UniversalTracker.savedVariables.setupList) do
+			if v and v.id and v.name then
+				LibRadialMenu:RegisterEntry(UniversalTracker.name, v.name, tostring(v.id), "EsoUI/Art/Notifications/notificationIcon_duel.dds", function() UniversalTracker.loadSetup(v.id) end, "Load this setup.")
+			end
+		end
+		for k, v in pairs(UniversalTracker.characterSavedVariables.setupList) do
+			if v and v.id and v.name then
+				LibRadialMenu:RegisterEntry(UniversalTracker.name, v.name, tostring(v.id), "EsoUI/Art/Notifications/notificationIcon_duel.dds", function() UniversalTracker.loadSetup(v.id) end, "Load this setup.")
+			end
 		end
 	end
-	for k, v in pairs(UniversalTracker.characterSavedVariables.setupList) do
-		if v and v.id and v.name then
-			LibRadialMenu:RegisterEntry(UniversalTracker.name, v.name, tostring(v.id), "EsoUI/Art/Notifications/notificationIcon_duel.dds", function() UniversalTracker.loadSetup(v.id) end, "Load this setup.")
-		end
-	end
+	
 
 	HUD_FRAGMENT:RegisterCallback("StateChange", function(oldState, newState)
 		if newState == SCENE_FRAGMENT_SHOWN then
