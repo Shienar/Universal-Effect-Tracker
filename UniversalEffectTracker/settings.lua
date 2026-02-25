@@ -21,7 +21,12 @@ local settingPages = {
 		editedNav = {},
 		newNav = {},
 	},
-	utilities = {},
+	utilities = {
+		print = {},
+		events = {},
+		presets = {},
+		nav = {},
+	},
 }
 
 local currentPageIndex = 2
@@ -303,6 +308,7 @@ function UniversalTracker.InitSettings()
 	local unitNameLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Unit Name",}
 
 	local printLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Print",}
+	local eventLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Event Listener",}
 	local presetLabel = {type = LibHarvensAddonSettings.ST_SECTION, label = "Presets"}
 
 	-----------------------------------------------------------
@@ -706,7 +712,12 @@ function UniversalTracker.InitSettings()
 		buttonText = "UTILITES",
 		tooltip = "Tools that will help you find the abilityIDs for certain effects.",
 		clickHandler = function(control)
-			loadMenu(settingPages.utilities, 2)
+			local loadedSettingsList = {}
+			appendTables(loadedSettingsList, settingPages.utilities.print)
+			appendTables(loadedSettingsList, settingPages.utilities.events)
+			appendTables(loadedSettingsList, settingPages.utilities.presets)
+			appendTables(loadedSettingsList, settingPages.utilities.nav)
+			loadMenu(loadedSettingsList, 2)
 			currentPageIndex = 8
 		end
 	}
@@ -1747,32 +1758,106 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
-	--Not a saved variable
-	local spamRegistered = false
-	local debugSpam = {
+	---------------------------------------
+	---		Utilities (Events)			---
+	---------------------------------------
+	
+	local shouldtrackEffectGained = true
+	local trackEffectGained = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
-		label = "Event Spam",
-		tooltip = "Registers with EVENT_COMBAT_EVENT to print all detected effect changes into the chat.\n\
-					May cause lag in group content.",
-		getFunction = function() return spamRegistered end,
-		setFunction = function(value)
-			spamRegistered = value
-			if value == true then
-				EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT, function(_, result, _, name, _, _, _, _, targetName, _, hitValue, _, _, _, _, _, id)
-					if not targetName or targetName == "" then return end
-					if result == ACTION_RESULT_EFFECT_GAINED then
-						UniversalTracker.chat:Print("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained for "..(hitValue/1000).." seconds")
-					elseif result == ACTION_RESULT_EFFECT_GAINED_DURATION then
-						UniversalTracker.chat:Print("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Gained Duration for "..(hitValue/1000).." seconds")
-					elseif result == ACTION_RESULT_EFFECT_FADED then
-						UniversalTracker.chat:Print("["..zo_strformat(SI_UNIT_NAME, targetName).."] "..name.." ("..id.."): Effect Faded")
-					end
-				end)
-			else
-				EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT)
-			end						
+		label = "Effect Gained",
+		tooltip = "Should the event spammer include the ACTION_RESULT_EFFECT_GAINED result?",
+		getFunction = function() return shouldtrackEffectGained end,
+		setFunction = function(value) 
+			shouldtrackEffectGained = value
 		end,
-		default = spamRegistered
+		default = shouldtrackEffectGained
+	}
+	
+	local shouldtrackEffectGainedDuration = true
+	local trackEffectGainedDuration = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Effect Gained Duration",
+		tooltip = "Should the event spammer include the ACTION_RESULT_EFFECT_GAINED_DURATION result?",
+		getFunction = function() return shouldtrackEffectGainedDuration end,
+		setFunction = function(value) 
+			shouldtrackEffectGainedDuration = value
+		end,
+		default = shouldtrackEffectGainedDuration
+	}
+	
+	local shouldTrackEffectFaded = true
+	local trackEffectFaded = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Effect Faded",
+		tooltip = "Should the event spammer include the ACTION_RESULT_EFFECT_FADED result?",
+		getFunction = function() return shouldTrackEffectFaded end,
+		setFunction = function(value) 
+			shouldTrackEffectFaded = value
+		end,
+		default = shouldTrackEffectFaded
+	}
+
+	local showDuplicates = true
+	local duplicateAbilityIDTable = {
+		[ACTION_RESULT_EFFECT_GAINED] = {},
+		[ACTION_RESULT_EFFECT_GAINED_DURATION] = {},
+		[ACTION_RESULT_EFFECT_FADED] = {},
+	}
+	local allowDuplicates = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Duplicate Messages",
+		tooltip = "Should the event spammer show repeated messages?",
+		getFunction = function() return showDuplicates end,
+		setFunction = function(value) 
+			showDuplicates = value
+		end,
+		default = showDuplicates
+	}
+
+	local startDebugSpam = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Start Event Spam",
+		tooltip = "Listens on EVENT_COMBAT_EVENT based on the filters above and dumps the output into chat.",
+		clickHandler = function(control)
+			UniversalTracker.chat:Print("Now listening on EVENT_COMBAT_EVENT")
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT)
+			duplicateAbilityIDTable = {
+				[ACTION_RESULT_EFFECT_GAINED] = {},
+				[ACTION_RESULT_EFFECT_GAINED_DURATION] = {},
+				[ACTION_RESULT_EFFECT_FADED] = {},
+			}
+
+			EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT, function(_, result, _, abilityName, _, _, _, _, targetName, _, hitValue, _, _, _, _, _, id)
+				if not targetName or targetName == "" then return end
+				if not showDuplicates and duplicateAbilityIDTable[result] and duplicateAbilityIDTable[result][id] then return end
+
+				if result == ACTION_RESULT_EFFECT_GAINED and shouldtrackEffectGained then
+					duplicateAbilityIDTable[result][id] = true
+					UniversalTracker.chat:Print(zo_strformat(SI_UNIT_NAME, targetName).." Gained Effect "..zo_strformat(SI_ABILITY_NAME, abilityName).." with ID "..id.." for "..(hitValue/1000).." seconds")
+				elseif result == ACTION_RESULT_EFFECT_GAINED_DURATION and shouldtrackEffectGainedDuration then
+					duplicateAbilityIDTable[result][id] = true
+					UniversalTracker.chat:Print(zo_strformat(SI_UNIT_NAME, targetName).." Gained Duration on "..zo_strformat(SI_ABILITY_NAME, abilityName).." with ID "..id.." for "..(hitValue/1000).." seconds")
+				elseif result == ACTION_RESULT_EFFECT_FADED and shouldTrackEffectFaded then
+					duplicateAbilityIDTable[result][id] = true
+					UniversalTracker.chat:Print(zo_strformat(SI_ABILITY_NAME, abilityName).." with ID "..id.." Faded on "..zo_strformat(SI_UNIT_NAME, targetName))
+				end
+			end)			
+		end,
+	}
+	local stopDebugSpam = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "Stop Event Spam",
+		tooltip = "Unregisters the utility-provided EVENT_COMBAT_EVeNT listener.",
+		clickHandler = function(control)
+			UniversalTracker.chat:Print("No longer listening on EVENT_COMBAT_EVENT")
+			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name.." Debug Spam", EVENT_COMBAT_EVENT)
+			duplicateAbilityIDTable = {
+				[ACTION_RESULT_EFFECT_GAINED] = {},
+				[ACTION_RESULT_EFFECT_GAINED_DURATION] = {},
+				[ACTION_RESULT_EFFECT_FADED] = {},
+			}
+		end,
 	}
 
 	---------------------------------------
@@ -1845,10 +1930,11 @@ function UniversalTracker.InitSettings()
 	settingPages.newTracker.editedNav = {navLabel, deleteTracker, copyTrackerToCharacter, copyTrackerToAccount, trackerCancelButton, trackerSaveButton}
 	settingPages.newTracker.newNav = {navLabel, setNewTrackerSaveType, trackerCancelButton, trackerSaveButton}
 
-	settingPages.utilities = {printLabel, printItemSets, printCurrentEffects, printTargetEffects, printBossEffects, debugSpam,
-								presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, 
-									mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset,
-								navLabel, returnToMainMenuButton}
+	settingPages.utilities.print = {printLabel, printItemSets, printCurrentEffects, printTargetEffects, printBossEffects}
+	settingPages.utilities.events = {eventLabel, trackEffectGained, trackEffectGainedDuration, trackEffectFaded, allowDuplicates, stopDebugSpam, startDebugSpam}
+	settingPages.utilities.presets = {presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, 
+										mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset}
+	settingPages.utilities.nav = {navLabel, returnToMainMenuButton}
 
 
 	-- I'm resorting to storing and calculating this so 
