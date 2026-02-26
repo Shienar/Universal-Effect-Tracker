@@ -29,7 +29,7 @@ UniversalTracker.Animations = {}
 
 -- A seperate table for floating controls instead of UniversalTracker.Controls
 -- Contains subtables at index [id] of {key, object, unitTag}
-UniversalTracker.FloatingControls = { 
+UniversalTracker.FloatingControls = {
 	totalFloatingControlCount = 0,
 	list = {}
 }
@@ -44,9 +44,9 @@ UniversalTracker.targetIDs_BarAnimation = {}
 function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 	--Unregister and free existing trackers from this table.
 	if settingsTable.id then
-		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT) 
+		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_COMBAT_EVENT)
 		EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_EFFECT_CHANGED)
-	
+
 		if UniversalTracker.FloatingControls.list[settingsTable.id] and #UniversalTracker.FloatingControls.list[settingsTable.id] > 0 then
 			for k, v in pairs(UniversalTracker.FloatingControls.list[settingsTable.id]) do
 				UniversalTracker.floatingPool:ReleaseObject(v.key)
@@ -56,9 +56,9 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_JOINED)
 			EVENT_MANAGER:UnregisterForEvent(UniversalTracker.name..settingsTable.id, EVENT_GROUP_MEMBER_LEFT)
 		elseif UniversalTracker.Controls[settingsTable.id] then
-			if UniversalTracker.Controls[settingsTable.id][1] or 
+			if UniversalTracker.Controls[settingsTable.id][1] or
 				not next(UniversalTracker.Controls[settingsTable.id]) -- initialized but empty table (e.g. initialized boss tracker but no nearby bosses)
-			then 
+			then
 					UniversalTracker.freeLists(settingsTable)
 			end
 
@@ -70,7 +70,7 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 					UniversalTracker.compactPool:ReleaseObject(UniversalTracker.Controls[settingsTable.id].key)
 				end
 			end
-		end 
+		end
 
 		if UniversalTracker.FloatingControls.totalFloatingControlCount == 0 then
 			EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."RotateFloatingObjects")
@@ -86,7 +86,12 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	UniversalTracker.ReleaseSingleDisplay(settingsTable)
 
-	if settingsTable.hidden or (tonumber(settingsTable.requiredSetID) and not UniversalTracker.isWearingFullSet(tonumber(settingsTable.requiredSetID))) then return end
+	if settingsTable.hidden or
+		(tonumber(settingsTable.requiredZoneID) and not UniversalTracker.isInZone(tonumber(settingsTable.requiredZoneID))) or
+		(tonumber(settingsTable.requiredSetID) and not UniversalTracker.isWearingFullSet(tonumber(settingsTable.requiredSetID)))
+	then
+		return
+	end
 
 	local unitTag = nil
 	if settingsTable.targetType == "Player" then
@@ -205,7 +210,7 @@ function UniversalTracker.Initialize()
 			end
 		end
 	end
-	
+
 
 	HUD_FRAGMENT:RegisterCallback("StateChange", function(oldState, newState)
 		if newState == SCENE_FRAGMENT_SHOWN then
@@ -214,7 +219,7 @@ function UniversalTracker.Initialize()
 			--unhide everything.
 			for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
 				if UniversalTracker.Controls[v.id] then
-					if UniversalTracker.Controls[v.id].object and 
+					if UniversalTracker.Controls[v.id].object and
 						not (v.hideInactive and
 						((v.type == "Compact" and UniversalTracker.Controls[v.id].object:GetNamedChild("Duration"):GetText() == "") or
 						(v.type == "Bar" and UniversalTracker.Controls[v.id].object:GetNamedChild("Bar"):GetValue() == 0)))
@@ -222,7 +227,7 @@ function UniversalTracker.Initialize()
 						UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
 					else
 						for i = 1, #UniversalTracker.Controls[v.id] do
-							if UniversalTracker.Controls[v.id][i].object and 
+							if UniversalTracker.Controls[v.id][i].object and
 								not (v.hideInactive and
 								((v.type == "Compact" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Duration"):GetText() == "") or
 								(v.type == "Bar" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Bar"):GetValue() == 0)))
@@ -235,7 +240,7 @@ function UniversalTracker.Initialize()
 			end
 			for k, v in pairs(UniversalTracker.characterSavedVariables.trackerList) do
 				if UniversalTracker.Controls[v.id] then
-					if UniversalTracker.Controls[v.id].object and 
+					if UniversalTracker.Controls[v.id].object and
 						not (v.hideInactive and
 						((v.type == "Compact" and UniversalTracker.Controls[v.id].object:GetNamedChild("Duration"):GetText() == "") or
 						(v.type == "Bar" and UniversalTracker.Controls[v.id].object:GetNamedChild("Bar"):GetValue() == 0)))
@@ -243,7 +248,7 @@ function UniversalTracker.Initialize()
 						UniversalTracker.Controls[v.id].object:SetHidden(v.hidden)
 					else
 						for i = 1, #UniversalTracker.Controls[v.id] do
-							if UniversalTracker.Controls[v.id][i].object and 
+							if UniversalTracker.Controls[v.id][i].object and
 								not (v.hideInactive and
 								((v.type == "Compact" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Duration"):GetText() == "") or
 								(v.type == "Bar" and UniversalTracker.Controls[v.id][i].object:GetNamedChild("Bar"):GetValue() == 0)))
@@ -285,12 +290,12 @@ function UniversalTracker.Initialize()
 		end
 	end)
 
-	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _) 
+	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDScan", EVENT_EFFECT_CHANGED, function(_, changeType, effectSlot, _, tag, startTime, endTime, _, _, _, _, _, _, _, unitID, abilityID, _)
 		if tag == "reticleover" or not UniversalTracker.unitIDs[unitID] then
 			UniversalTracker.unitIDs[unitID] = tag
 		end
 	end)
-	local function resetIDList() 
+	local function resetIDList()
 		UniversalTracker.unitIDs = {}
 	end
 	EVENT_MANAGER:RegisterForEvent(UniversalTracker.name.."_IDClear", EVENT_BOSSES_CHANGED, resetIDList)

@@ -10,7 +10,7 @@ local function RotateFloatingControls()
 
     for k, v in pairs(UniversalTracker.FloatingControls.list) do
         for index, data in pairs(v) do
-            if data and data.object and not data.object:IsHidden() then 
+            if data and data.object and not data.object:IsHidden() then
                 data.object:SetTransformRotation(pitch, yaw, 0)
             end
         end
@@ -46,7 +46,7 @@ function UniversalTracker.RefreshFloatingList(settingsTable, unitTagPrefix)
 end
 
 function UniversalTracker.InitFloating(settingsTable, unitTag)
-    
+
     local floatingControl, floatingControlKey = UniversalTracker.floatingPool:AcquireObject()
     floatingControl:SetTransformNormalizedOriginPoint(0.5, 0.5)
     floatingControl:SetSpace(SPACE_WORLD)
@@ -130,7 +130,7 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
 				else
 					textureControl:SetTexture(settingsTable.overrideTexturePath)
 				end
-				
+
                 UniversalTracker.updateVisibility(floatingControl, true, settingsTable)
 
                 if not IsAbilityPermanent(abilityID) then
@@ -180,7 +180,7 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
                 UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
 
 			else
-                
+
                 if settingsTable.overrideTexturePath == "" then
                     textureControl:SetTexture(GetAbilityIcon(abilityID))
                 else
@@ -198,9 +198,9 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
                         local duration = (endTime-GetGameTimeMilliseconds())/1000
                         if duration < 0 then
                             --Effect Expired
-                            EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())				
+                            EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name..floatingControl:GetName())
                             durationControl:SetText("")
-                            
+
                             UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
                         else
                             if duration < 2 then
@@ -221,5 +221,5 @@ function UniversalTracker.InitFloating(settingsTable, unitTag)
             UniversalTracker.updateVisibility(floatingControl, false, settingsTable)
         end
     end)
-    
+
 end

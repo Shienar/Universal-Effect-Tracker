@@ -13,6 +13,7 @@ initSimple.lua
 list.lua
 initFloating.lua
 item_sets.lua
+zones.lua
 main.lua
 presets.lua
 settings.lua

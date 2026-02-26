@@ -44,6 +44,7 @@ local newTracker = {
 	targetType = "Player",
 	overrideTexturePath = "",
 	requiredSetID = "",
+	requiredZoneID = "",
 	appliedBySelf = false,
 	hideInactive = false,
 	hideActive = false,
@@ -618,6 +619,7 @@ function UniversalTracker.InitSettings()
 				targetType = "Player",
 				overrideTexturePath = "",
 				requiredSetID = "",
+				requiredZoneID = "",
 				appliedBySelf = false,
 				hideInactive = false,
 				hideActive = false,
@@ -1107,6 +1109,19 @@ function UniversalTracker.InitSettings()
 			updateTrackerSettingList(4)
 		end,
 		default = 1
+	}
+
+	local setRequiredZone= {
+		type = LibHarvensAddonSettings.ST_EDIT,
+		textType = TEXT_TYPE_NUMERIC,
+		label = "Required Zone ID",
+		tooltip = "If this setting is set, the tracker will only be enabled while in a zone with the specified ID.\n\
+					Visit the utilities page to get a printout of the current zone's ID",
+		getFunction = function() return newTracker.requiredZoneID end,
+		setFunction = function(value)
+			newTracker.requiredZoneID = value
+		end,
+		default = ""
 	}
 
 	local setRequiredSetID = {
@@ -1758,6 +1773,17 @@ function UniversalTracker.InitSettings()
 		end
 	}
 
+	local printCurrentZone = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "ZONE",
+		buttonText = "PRINT ZONE ID",
+		tooltip = "Prints the ID of the zone you are in..",
+		clickHandler = function(control)
+			local zoneID, _, _, _ = GetUnitRawWorldPosition("player")
+			UniversalTracker.chat:Print("You are in "..GetZoneNameById(zoneID).." with ID "..zoneID)
+		end
+	}
+
 	---------------------------------------
 	---		Utilities (Events)			---
 	---------------------------------------
@@ -1897,12 +1923,9 @@ function UniversalTracker.InitSettings()
 	local tauntPreset = generatePreset("taunt", UniversalTracker.presets.taunt)
 	local staggerPreset = generatePreset("stagger", UniversalTracker.presets.stagger)
 	local relentlessPreset = generatePreset("relentless focus", UniversalTracker.presets.relentlessFocus)
-	local mercilessPreset = generatePreset("stagger", UniversalTracker.presets.mercilessResolve)
+	local mercilessPreset = generatePreset("merciless resolve", UniversalTracker.presets.mercilessResolve)
 	local alkoshPreset = generatePreset("alkosh", UniversalTracker.presets.alkosh)
-	local mkPreset = generatePreset("stagger", UniversalTracker.presets.mk)
-	local ecFlamePreset = generatePreset("ec (flame)", UniversalTracker.presets.ecFire)
-	local ecShockPreset = generatePreset("ec (shock)", UniversalTracker.presets.ecShock)
-	local ecIcePreset = generatePreset("ec (ice)", UniversalTracker.presets.ecIce)
+	local mkPreset = generatePreset("martial knowledge", UniversalTracker.presets.mk)
 	local synergyPreset = generatePreset("resource synergy", UniversalTracker.presets.synergyCooldown)
 
 	---------------------------------------
@@ -1914,8 +1937,8 @@ function UniversalTracker.InitSettings()
 	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
 
-	settingPages.newTracker.general = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, 
-										setNewTrackerTargetType, setRequiredSetID, setNewTrackerOverrideTexture, 
+	settingPages.newTracker.general = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType,
+										setRequiredZone, setRequiredSetID, setNewTrackerOverrideTexture, 
 										appliedBySelf, hideInactive, hideActive, hideTracker}
 	settingPages.newTracker.abilities = {abilityIDListLabel, setNewAbilityID, add1AbilityID}
 	settingPages.newTracker.position = {positionLabel, newScale, newXOffset, newYOffset}
@@ -1930,10 +1953,10 @@ function UniversalTracker.InitSettings()
 	settingPages.newTracker.editedNav = {navLabel, deleteTracker, copyTrackerToCharacter, copyTrackerToAccount, trackerCancelButton, trackerSaveButton}
 	settingPages.newTracker.newNav = {navLabel, setNewTrackerSaveType, trackerCancelButton, trackerSaveButton}
 
-	settingPages.utilities.print = {printLabel, printItemSets, printCurrentEffects, printTargetEffects, printBossEffects}
+	settingPages.utilities.print = {printLabel, printItemSets, printCurrentZone, printCurrentEffects, printTargetEffects, printBossEffects}
 	settingPages.utilities.events = {eventLabel, trackEffectGained, trackEffectGainedDuration, trackEffectFaded, allowDuplicates, stopDebugSpam, startDebugSpam}
 	settingPages.utilities.presets = {presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, 
-										mercilessPreset, alkoshPreset, mkPreset, ecFlamePreset, ecShockPreset, ecIcePreset, synergyPreset}
+										mercilessPreset, alkoshPreset, mkPreset, synergyPreset}
 	settingPages.utilities.nav = {navLabel, returnToMainMenuButton}
 
 
