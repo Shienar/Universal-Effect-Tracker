@@ -12,6 +12,20 @@ UniversalTracker.defaults = {
 	},
 }
 
+--[[
+	TODO:
+		- Bar Section in settings
+			- Start Color
+			- End Color
+				- Toggleable
+			- Orientation
+				- Left->Right
+				- Right->Left
+				- Top->Bottom
+				- Bottom->Top
+			- Width
+]]
+
 UniversalTracker.defaultsCharacter = {
 	trackerList = {
 
@@ -88,7 +102,8 @@ function UniversalTracker.InitSingleDisplay(settingsTable)
 
 	if settingsTable.hidden or
 		(tonumber(settingsTable.requiredZoneID) and not UniversalTracker.isInZone(tonumber(settingsTable.requiredZoneID))) or
-		(tonumber(settingsTable.requiredSetID) and not UniversalTracker.isWearingFullSet(tonumber(settingsTable.requiredSetID)))
+		(tonumber(settingsTable.requiredSetID) and not UniversalTracker.isWearingFullSet(tonumber(settingsTable.requiredSetID))) or
+		(tonumber(settingsTable.requiredSkillID) and not UniversalTracker.hasSkillEquipped(tonumber(settingsTable.requiredSkillID)))
 	then
 		return
 	end

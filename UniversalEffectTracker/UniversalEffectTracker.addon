@@ -9,11 +9,16 @@
 ## SavedVariables: UniversalTrackerSavedVariables
 
 templates.xml
-initSimple.lua
-list.lua
-initFloating.lua
-item_sets.lua
-zones.lua
+
+init/initSimple.lua
+init/list.lua
+init/initFloating.lua
+
+conditions/item_sets.lua
+conditions/zones.lua
+conditions/skills.lua
+
+settings/presets.lua
+settings/settings.lua
+
 main.lua
-presets.lua
-settings.lua

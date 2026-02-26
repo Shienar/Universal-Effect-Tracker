@@ -8,6 +8,7 @@ local settingPages = {
 	trackedList = {},
 	newTracker = {
 		general = {},
+		visiblity = {},
 		abilities = {},
 		position = {},
 		columns = {},
@@ -45,6 +46,7 @@ local newTracker = {
 	overrideTexturePath = "",
 	requiredSetID = "",
 	requiredZoneID = "",
+	requiredSkillID = "",
 	appliedBySelf = false,
 	hideInactive = false,
 	hideActive = false,
@@ -160,6 +162,7 @@ local function updateTrackerSettingList(jumpToIndex)
 	--Modify the provided settaings as needed to fit tracker type.
 	local loadedSettingsList = {}
 	appendTables(loadedSettingsList, settingPages.newTracker.general)
+	appendTables(loadedSettingsList, settingPages.newTracker.visiblity)
 	appendTables(loadedSettingsList, settingPages.newTracker.abilities)
 	appendTables(loadedSettingsList, settingPages.newTracker.position)
 	if newTracker.targetType == "Boss" or newTracker.targetType == "All" or newTracker.targetType == "Group" then 
@@ -299,6 +302,7 @@ function UniversalTracker.InitSettings()
 	local characterSetupsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Character Setups",}
 
 	local newTrackerMenuLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Edit Tracker",}
+	local visibilityLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Visibility",}
 	local abilityIDListLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Tracked abilityIDs",}
 	local positionLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Position",}
 	local listSettingsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "List Settings",}
@@ -620,6 +624,7 @@ function UniversalTracker.InitSettings()
 				overrideTexturePath = "",
 				requiredSetID = "",
 				requiredZoneID = "",
+				requiredSkillID = "",
 				appliedBySelf = false,
 				hideInactive = false,
 				hideActive = false,
@@ -691,6 +696,7 @@ function UniversalTracker.InitSettings()
 			--Modify the provided settaings as needed to fit the default tracker type (Compact, Player)
 			local loadedSettingsList = {}
 			appendTables(loadedSettingsList, settingPages.newTracker.general)
+			appendTables(loadedSettingsList, settingPages.newTracker.visiblity)
 			appendTables(loadedSettingsList, settingPages.newTracker.abilities)
 			appendTables(loadedSettingsList, settingPages.newTracker.position)
 			appendTables(loadedSettingsList, settingPages.newTracker.text.label)
@@ -1133,6 +1139,19 @@ function UniversalTracker.InitSettings()
 		getFunction = function() return newTracker.requiredSetID end,
 		setFunction = function(value)
 			newTracker.requiredSetID = value
+		end,
+		default = ""
+	}
+
+	local setRequiredSkillID = {
+		type = LibHarvensAddonSettings.ST_EDIT,
+		textType = TEXT_TYPE_NUMERIC,
+		label = "Required Skill ID",
+		tooltip = "If this setting is set, the tracker will only be enabled while having a skill with the specified ID equipped.\n\
+					Visit the utilities page to get a printout of your slotted skills' IDs",
+		getFunction = function() return newTracker.requiredSkillID end,
+		setFunction = function(value)
+			newTracker.requiredSkillID = value
 		end,
 		default = ""
 	}
@@ -1756,7 +1775,7 @@ function UniversalTracker.InitSettings()
 					UniversalTracker.chat:Print(zo_strformat(SI_UNIT_NAME, GetUnitName("boss"..x)))
 					for i = 1, GetNumBuffs("boss"..x) do
 						local buffName, _, _, _, _, iconFilename, _, _, _, _, abilityId, _, _ = GetUnitBuffInfo("boss"..x, i) 
-						UniversalTracker.chat:Print(". "..buffName.." (ID:"..abilityId..") ".."Texture="..iconFilename)
+						UniversalTracker.chat:Print(".   "..buffName.." (ID:"..abilityId..") ".."Texture="..iconFilename)
 					end
 				end
 			end
@@ -1766,10 +1785,31 @@ function UniversalTracker.InitSettings()
 	local printItemSets = {
 		type = LibHarvensAddonSettings.ST_BUTTON,
 		label = "SETS",
-		buttonText = "PRINT SETIDS",
+		buttonText = "PRINT SET IDS",
 		tooltip = "Prints the Set IDs of your currently equipped sets.",
 		clickHandler = function(control)
 			UniversalTracker.printEquips()
+		end
+	}
+
+	local printSkills = {
+		type = LibHarvensAddonSettings.ST_BUTTON,
+		label = "SKILLS",
+		buttonText = "PRINT SKILL IDS",
+		tooltip = "Prints the Skill IDs of your currently equipped skills.\n\
+					Note that these can differ from effect IDs.",
+		clickHandler = function(control)
+			local abilityID
+			UniversalTracker.chat:Print("Frontbar")
+			for i = 3, 8 do
+				abilityID = GetEffectiveAbilityIdForAbilityOnHotbar(GetSlotBoundId(i, HOTBAR_CATEGORY_PRIMARY), HOTBAR_CATEGORY_PRIMARY)
+				if abilityID ~= 0 then UniversalTracker.chat:Print(".   "..GetAbilityName(abilityID).." = "..abilityID) end
+			end
+			UniversalTracker.chat:Print("Backbar")
+			for i = 3, 8 do
+				abilityID = GetEffectiveAbilityIdForAbilityOnHotbar(GetSlotBoundId(i, HOTBAR_CATEGORY_BACKUP), HOTBAR_CATEGORY_BACKUP)
+				if abilityID ~= 0 then UniversalTracker.chat:Print(".   "..GetAbilityName(abilityID).." = "..abilityID) end
+			end
 		end
 	}
 
@@ -1937,9 +1977,8 @@ function UniversalTracker.InitSettings()
 	settingPages.newSetup = {editSetupLabel, setNewSetupName, accountTrackersLabel, characterTrackersLabel, navLabel, setNewTrackerSaveType, setupCancelButton, setupSaveButton}
 	settingPages.trackedList = {accountTrackersLabel, characterTrackersLabel, navLabel, returnToMainMenuButton}
 
-	settingPages.newTracker.general = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType,
-										setRequiredZone, setRequiredSetID, setNewTrackerOverrideTexture, 
-										appliedBySelf, hideInactive, hideActive, hideTracker}
+	settingPages.newTracker.general = {newTrackerMenuLabel, setNewTrackerName, setNewTrackerType, setNewTrackerTargetType, setNewTrackerOverrideTexture, hideTracker}
+	settingPages.newTracker.visiblity = {visibilityLabel, setRequiredSetID, setRequiredSkillID, setRequiredZone, appliedBySelf, hideInactive, hideActive}
 	settingPages.newTracker.abilities = {abilityIDListLabel, setNewAbilityID, add1AbilityID}
 	settingPages.newTracker.position = {positionLabel, newScale, newXOffset, newYOffset}
 	settingPages.newTracker.columns = {listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}
@@ -1953,7 +1992,7 @@ function UniversalTracker.InitSettings()
 	settingPages.newTracker.editedNav = {navLabel, deleteTracker, copyTrackerToCharacter, copyTrackerToAccount, trackerCancelButton, trackerSaveButton}
 	settingPages.newTracker.newNav = {navLabel, setNewTrackerSaveType, trackerCancelButton, trackerSaveButton}
 
-	settingPages.utilities.print = {printLabel, printItemSets, printCurrentZone, printCurrentEffects, printTargetEffects, printBossEffects}
+	settingPages.utilities.print = {printLabel, printSkills, printItemSets, printCurrentZone, printCurrentEffects, printTargetEffects, printBossEffects}
 	settingPages.utilities.events = {eventLabel, trackEffectGained, trackEffectGainedDuration, trackEffectFaded, allowDuplicates, stopDebugSpam, startDebugSpam}
 	settingPages.utilities.presets = {presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, 
 										mercilessPreset, alkoshPreset, mkPreset, synergyPreset}
@@ -1965,7 +2004,7 @@ function UniversalTracker.InitSettings()
 	-- put a setting before the abilityID
 	--
 	-- This is the index of the first abilityID textbox.
-	firstAbilityIDIndex = #settingPages.newTracker.general + 2
+	firstAbilityIDIndex = #settingPages.newTracker.general + #settingPages.newTracker.visiblity + 2
 
 	settings:AddSettings(settingPages.mainMenu)
 end
