@@ -20,6 +20,9 @@ end
 
 
 ACTION_BAR_ASSIGNMENT_MANAGER:RegisterCallback("SlotUpdated", function(hotbarCategory, actionSlotIndex, isChangedByPlayer)
+    --Callback can fire before initialization function when loading in a character.
+    if not UniversalTracker.savedVariables or not UniversalTracker.characterSavedVariables then return end
+
     for k, v in pairs(UniversalTracker.savedVariables.trackerList) do
         if tonumber(v.requiredSkillID) then
             if UniversalTracker.hasSkillEquipped(tonumber(v.requiredSkillID)) then
