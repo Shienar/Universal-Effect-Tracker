@@ -12,6 +12,7 @@ local settingPages = {
 		abilities = {},
 		position = {},
 		columns = {},
+		bar = {},
 		text = {
 			label = nil,
 			duration = {},
@@ -58,6 +59,35 @@ local newTracker = {
 		columns = 1,
 		horizontalOffsetScale = 1,
 		verticalOffsetScale = 1,
+	},
+	barSettings = {
+		alignment = "Left",
+		length = 200,
+		sameEndColor = true,
+		startColor = {
+			r = 0,
+			g = 1,
+			b = 0,
+			a = 1,
+		},
+		endColor = {
+			r = 1,
+			g = 0,
+			b = 0,
+			a = 1,
+		},
+		backgroundColor = {
+			r = 0.467,
+			g = 0.467,
+			b = 0.467,
+			a = 1,
+		},
+		edgeColor = {
+			r = 1,
+			g = 0.8745,
+			b = 0,
+			a = 1,
+		},
 	},
 	textSettings = {
 		duration = {
@@ -165,8 +195,11 @@ local function updateTrackerSettingList(jumpToIndex)
 	appendTables(loadedSettingsList, settingPages.newTracker.visiblity)
 	appendTables(loadedSettingsList, settingPages.newTracker.abilities)
 	appendTables(loadedSettingsList, settingPages.newTracker.position)
-	if newTracker.targetType == "Boss" or newTracker.targetType == "All" or newTracker.targetType == "Group" then 
+	if newTracker.type ~= "Floating" and (newTracker.targetType == "Boss" or newTracker.targetType == "All" or newTracker.targetType == "Group") then
 		appendTables(loadedSettingsList, settingPages.newTracker.columns)
+	end
+	if newTracker.type == "Bar" then
+		appendTables(loadedSettingsList, settingPages.newTracker.bar)
 	end
 	appendTables(loadedSettingsList, settingPages.newTracker.text.label)
 	appendTables(loadedSettingsList, settingPages.newTracker.text.duration)
@@ -272,7 +305,9 @@ local function previewTracker()
 	UniversalTracker.previewTrackerInfo = ZO_DeepTableCopy(newTracker)
 	UniversalTracker.previewTrackerInfo.id = -999
 
+	HUD_FRAGMENT.state = "shown"
 	UniversalTracker.InitSingleDisplay(UniversalTracker.previewTrackerInfo)
+	HUD_FRAGMENT.state = "hidden"
 	EVENT_MANAGER:RegisterForUpdate(UniversalTracker.name.."PreviewTracker", 2500, function()
 		EVENT_MANAGER:UnregisterForUpdate(UniversalTracker.name.."PreviewTracker")
 		UniversalTracker.ReleaseSingleDisplay(UniversalTracker.previewTrackerInfo)
@@ -306,6 +341,7 @@ function UniversalTracker.InitSettings()
 	local abilityIDListLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Tracked abilityIDs",}
 	local positionLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Position",}
 	local listSettingsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "List Settings",}
+	local barSettingsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Bar Settings",}
 	local textSettingsLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Text",}
 	local durationLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Duration",}
 	local stacksLabel = {type = LibHarvensAddonSettings.ST_SECTION,label = "Stacks",}
@@ -636,6 +672,35 @@ function UniversalTracker.InitSettings()
 					columns = 1,
 					horizontalOffsetScale = 1,
 					verticalOffsetScale = 1,
+				},
+				barSettings = {
+					alignment = "Left",
+					length = 200,
+					sameEndColor = true,
+					startColor = {
+						r = 0,
+						g = 1,
+						b = 0,
+						a = 1,
+					},
+					endColor = {
+						r = 1,
+						g = 0,
+						b = 0,
+						a = 1,
+					},
+					backgroundColor = {
+						r = 0.467,
+						g = 0.467,
+						b = 0.467,
+						a = 1,
+					},
+					edgeColor = {
+						r = 1,
+						g = 0.8745,
+						b = 0,
+						a = 1,
+					},
 				},
 				textSettings = {
 					duration = {
@@ -1386,9 +1451,119 @@ function UniversalTracker.InitSettings()
 	}
 
 	-----------------------------------------
+	---			Trackers (Bar)			  ---
+	-----------------------------------------
+
+	local setBarAlignment = {
+		type = LibHarvensAddonSettings.ST_DROPDOWN,
+		label = "Alignment",
+		tooltip = "Choose the tracker's orientation",
+		items = {
+			{name = "Left", data = 1},
+			{name = "Right", data = 2},
+			{name = "Top", data = 3},
+			{name = "Bottom", data = 4},
+		},
+		getFunction = function() return newTracker.barSettings.alignment or "Left" end,
+		setFunction = function(control, itemName, itemData) 
+			newTracker.barSettings.alignment = itemName
+			previewTracker()
+		end,
+		default = 1
+	}
+	
+	local setBarLength = {
+		type = LibHarvensAddonSettings.ST_SLIDER,
+		label = "Bar Length",
+		tooltip = "Modifies the bar's length.\n",
+		min = 50,
+		max = 500,
+		step = 5,
+		format = "%f", 
+		unit = "",
+		getFunction = function() return newTracker.barSettings.length or 200 end,
+		setFunction = function(value)
+			newTracker.barSettings.length = value
+			previewTracker()
+		end,
+		default = 200
+	}
+
+	local setUseBarEndColor = {
+		type = LibHarvensAddonSettings.ST_CHECKBOX,
+		label = "Static Color",
+		tooltip = "Should the start color be used all the way through the animation?",
+		getFunction = function() return newTracker.barSettings.sameEndColor end,
+		setFunction = function(value) 
+			newTracker.barSettings.sameEndColor = value
+		end,
+		default = newTracker.barSettings.sameEndColor
+	}
+
+	local setBarStartColor = {
+		type = LibHarvensAddonSettings.ST_COLOR,
+		label = "Bar Start Color",
+		tooltip = "Choose the starting color for the bar's animation",
+		getFunction = function() 
+			return newTracker.barSettings.startColor.r, newTracker.barSettings.startColor.g, 
+				newTracker.barSettings.startColor.b, newTracker.barSettings.startColor.a 
+		end,
+		setFunction = function(r, g, b, a) 
+			newTracker.barSettings.startColor = {r = r, g = g, b = b, a = a}
+		end,
+		default = {0, 1, 0, 1}
+	}
+
+	local setBarEndColor = {
+		type = LibHarvensAddonSettings.ST_COLOR,
+		label = "Bar End Color",
+		tooltip = "Choose the ending color for the bar's animation",
+		getFunction = function() 
+			return newTracker.barSettings.endColor.r, newTracker.barSettings.endColor.g, 
+				newTracker.barSettings.endColor.b, newTracker.barSettings.endColor.a 
+		end,
+		setFunction = function(r, g, b, a) 
+			newTracker.barSettings.endColor = {r = r, g = g, b = b, a = a}
+		end,
+		default = {1, 0, 0, 1}
+	}
+
+	local setBarBackgroundColor = {
+		type = LibHarvensAddonSettings.ST_COLOR,
+		label = "Bar Background Color",
+		tooltip = "",
+		getFunction = function() 
+			return newTracker.barSettings.backgroundColor.r, newTracker.barSettings.backgroundColor.g, 
+				newTracker.barSettings.backgroundColor.b, newTracker.barSettings.backgroundColor.a 
+		end,
+		setFunction = function(r, g, b, a) 
+			newTracker.barSettings.backgroundColor = {r = r, g = g, b = b, a = 1}
+			previewTracker()
+		end,
+		default = {0.467, 0.467, 0.467, 1}
+	}
+	
+	local setBarEdgeColor = {
+		type = LibHarvensAddonSettings.ST_COLOR,
+		label = "Bar Edge Color",
+		tooltip = "",
+		getFunction = function() 
+			return newTracker.barSettings.edgeColor.r, newTracker.barSettings.edgeColor.g, 
+				newTracker.barSettings.edgeColor.b, newTracker.barSettings.edgeColor.a 
+		end,
+		setFunction = function(r, g, b, a) 
+			newTracker.barSettings.edgeColor = {r = r, g = g, b = b, a = a}
+			previewTracker()
+		end,
+		default = {1, 0.8745, 0, 1}
+	}
+
+
+	-----------------------------------------
 	---			Trackers (Text)		      ---
 	-----------------------------------------
 
+	-- Duration
 	hideDuration = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Hide Duration",
@@ -1481,6 +1656,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.duration.y
 	}
 
+	-- Stacks
 	hideStacks = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Hide Stacks",
@@ -1559,6 +1735,7 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.stacks.y
 	}
 
+	-- Ability Name
 	hideAbilityLabel = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Hide Ability Label",
@@ -1637,6 +1814,8 @@ function UniversalTracker.InitSettings()
 		default = newTracker.textSettings.abilityLabel.y
 	}
 
+	
+	-- Unit Name
 	hideunitLabel = {
 		type = LibHarvensAddonSettings.ST_CHECKBOX,
 		label = "Hide Unit Label",
@@ -1981,6 +2160,7 @@ function UniversalTracker.InitSettings()
 	settingPages.newTracker.visiblity = {visibilityLabel, setRequiredSetID, setRequiredSkillID, setRequiredZone, appliedBySelf, hideInactive, hideActive}
 	settingPages.newTracker.abilities = {abilityIDListLabel, setNewAbilityID, add1AbilityID}
 	settingPages.newTracker.position = {positionLabel, newScale, newXOffset, newYOffset}
+	settingPages.newTracker.bar = {barSettingsLabel, setBarAlignment, setBarLength, setBarBackgroundColor, setBarEdgeColor, setUseBarEndColor, setBarStartColor, setBarEndColor}
 	settingPages.newTracker.columns = {listSettingsLabel, columnCount, horizontalSpacing, verticalSpacing}
 	settingPages.newTracker.text = {
 		label = textSettingsLabel,
@@ -1994,8 +2174,7 @@ function UniversalTracker.InitSettings()
 
 	settingPages.utilities.print = {printLabel, printSkills, printItemSets, printCurrentZone, printCurrentEffects, printTargetEffects, printBossEffects}
 	settingPages.utilities.events = {eventLabel, trackEffectGained, trackEffectGainedDuration, trackEffectFaded, allowDuplicates, stopDebugSpam, startDebugSpam}
-	settingPages.utilities.presets = {presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, 
-										mercilessPreset, alkoshPreset, mkPreset, synergyPreset}
+	settingPages.utilities.presets = {presetLabel, setNewTrackerSaveType, offBalancePreset, tauntPreset, staggerPreset, relentlessPreset, mercilessPreset, alkoshPreset, mkPreset, synergyPreset}
 	settingPages.utilities.nav = {navLabel, returnToMainMenuButton}
 
 

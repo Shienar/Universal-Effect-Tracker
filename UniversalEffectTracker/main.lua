@@ -1,6 +1,12 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
 
+--[[
+	TODO:
+		- Bar Background color
+		- Bar Edge Color
+]]
+
 UniversalTracker.defaults = {
 	nextID = 0,
 	nextSetupID = 0,
@@ -11,20 +17,6 @@ UniversalTracker.defaults = {
 
 	},
 }
-
---[[
-	TODO:
-		- Bar Section in settings
-			- Start Color
-			- End Color
-				- Toggleable
-			- Orientation
-				- Left->Right
-				- Right->Left
-				- Top->Bottom
-				- Bottom->Top
-			- Width
-]]
 
 UniversalTracker.defaultsCharacter = {
 	trackerList = {
@@ -97,6 +89,39 @@ function UniversalTracker.ReleaseSingleDisplay(settingsTable)
 end
 
 function UniversalTracker.InitSingleDisplay(settingsTable)
+
+	-- Need to not break old trackers with new update.
+	if not settingsTable.barSettings then
+		settingsTable.barSettings = {
+			alignment = "Left",
+			length = 200,
+			sameEndColor = true,
+			startColor = {
+				r = 0,
+				g = 1,
+				b = 0,
+				a = 1,
+			},
+			endColor = {
+				r = 1,
+				g = 0,
+				b = 0,
+				a = 1,
+			},
+			backgroundColor = {
+				r = 0.467,
+				g = 0.467,
+				b = 0.467,
+				a = 1,
+			},
+			edgeColor = {
+				r = 1,
+				g = 0.8745,
+				b = 0,
+				a = 1,
+			},
+		} 
+	end
 
 	UniversalTracker.ReleaseSingleDisplay(settingsTable)
 

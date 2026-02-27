@@ -310,16 +310,77 @@ function UniversalTracker.InitBar(settingsTable, unitTag, control, animation)
 	local abilityNameControl = barControl:GetNamedChild("AbilityName")
 	local unitNameControl = barControl:GetNamedChild("UnitName")
 	local durationControl = barControl:GetNamedChild("Duration")
+    local backgroundControl = barControl:GetNamedChild("Background")
 
 	for i = 1, animation:GetNumAnimations() do
 		animation:GetAnimation(i):SetAnimatedControl(barControl)
 	end
 
-	animation:GetAnimation(1):SetHandler("OnPlay", function()
+    durationControl:SetWidth(settingsTable.barSettings.length)
+    abilityNameControl:SetWidth(settingsTable.barSettings.length)
+    unitNameControl:SetWidth(settingsTable.barSettings.length)
+    barControl:SetWidth(settingsTable.barSettings.length)
+    backgroundControl:SetWidth(settingsTable.barSettings.length + 2)
+    
+    if settingsTable.barSettings.alignment == "Left" or settingsTable.barSettings.alignment == "Bottom" then
+        barControl:SetBarAlignment(BAR_ALIGNMENT_NORMAL)
+        barControl:SetOrientation(ORIENTATION_HORIZONTAL)
+
+        durationControl:ClearAnchors()
+        durationControl:SetAnchor(RIGHT, barControl:GetNamedChild("Background"), RIGHT, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+        durationControl:SetHorizontalAlignment(TEXT_ALIGN_RIGHT)
+        
+        abilityNameControl:ClearAnchors()
+        abilityNameControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.abilityLabel.x, settingsTable.textSettings.abilityLabel.y)
+        abilityNameControl:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
+
+        textureControl:ClearAnchors()
+        textureControl:SetAnchor(RIGHT, barControl, LEFT, -1, 0)
+
+        unitNameControl:ClearAnchors()
+        unitNameControl:SetAnchor(BOTTOMLEFT, barControl:GetNamedChild("Background"), TOPLEFT, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
+        unitNameControl:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
+    elseif settingsTable.barSettings.alignment == "Right" or settingsTable.barSettings.alignment == "Top" then
+        barControl:SetBarAlignment(BAR_ALIGNMENT_REVERSE)
+        barControl:SetOrientation(ORIENTATION_HORIZONTAL)
+
+        durationControl:ClearAnchors()
+        durationControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
+        durationControl:SetHorizontalAlignment(TEXT_ALIGN_LEFT)
+
+        abilityNameControl:ClearAnchors()
+        abilityNameControl:SetAnchor(RIGHT, barControl:GetNamedChild("Background"), RIGHT, settingsTable.textSettings.abilityLabel.x, settingsTable.textSettings.abilityLabel.y)
+        abilityNameControl:SetHorizontalAlignment(TEXT_ALIGN_RIGHT)
+
+        textureControl:ClearAnchors()
+        textureControl:SetAnchor(LEFT, barControl, RIGHT, 1, 0)
+
+        unitNameControl:ClearAnchors()
+        unitNameControl:SetAnchor(BOTTOMRIGHT, barControl:GetNamedChild("Background"), TOPRIGHT, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
+        unitNameControl:SetHorizontalAlignment(TEXT_ALIGN_RIGHT)
+    end
+
+    if settingsTable.barSettings.alignment == "Bottom" or settingsTable.barSettings.alignment == "Top" then
+        control:SetTransformRotation(0, 0, math.pi/2)
+    else
+        control:SetTransformRotation(0, 0, 0)
+    end
+    
+    
+
+    local colorAnimation = animation:GetAnimation(1)
+    colorAnimation:SetStartColor(settingsTable.barSettings.startColor.r, settingsTable.barSettings.startColor.g, settingsTable.barSettings.startColor.b, settingsTable.barSettings.startColor.a)
+    if settingsTable.barSettings.sameEndColor then
+        colorAnimation:SetEndColor(settingsTable.barSettings.startColor.r, settingsTable.barSettings.startColor.g, settingsTable.barSettings.startColor.b, settingsTable.barSettings.startColor.a)
+    else
+        colorAnimation:SetEndColor(settingsTable.barSettings.endColor.r, settingsTable.barSettings.endColor.g, settingsTable.barSettings.endColor.b, settingsTable.barSettings.endColor.a)
+    end
+    
+	colorAnimation:SetHandler("OnPlay", function()
         UniversalTracker.updateVisibility(control, true, settingsTable)
 	end)
 
-	animation:GetAnimation(1):SetHandler("OnStop", function()
+	colorAnimation:SetHandler("OnStop", function()
         if settingsTable.hideActive then
             if HUD_FRAGMENT.state ~= "hidden" then control:SetHidden(false) end
         else
@@ -332,24 +393,22 @@ function UniversalTracker.InitBar(settingsTable, unitTag, control, animation)
         end
 	end)
 
+    backgroundControl:SetCenterColor(settingsTable.barSettings.backgroundColor.r, settingsTable.barSettings.backgroundColor.g, settingsTable.barSettings.backgroundColor.b, settingsTable.barSettings.backgroundColor.a)
+    backgroundControl:SetEdgeColor(settingsTable.barSettings.edgeColor.r, settingsTable.barSettings.edgeColor.g, settingsTable.barSettings.edgeColor.b, settingsTable.barSettings.edgeColor.a)
+    
+
 	durationControl:SetHidden(settingsTable.textSettings.duration.hidden)
 	durationControl:SetColor(settingsTable.textSettings.duration.color.r, settingsTable.textSettings.duration.color.g, settingsTable.textSettings.duration.color.b, settingsTable.textSettings.duration.color.a)
 	durationControl:SetScale(settingsTable.textSettings.duration.textScale)
-	durationControl:ClearAnchors()
-	durationControl:SetAnchor(RIGHT, barControl:GetNamedChild("Background"), RIGHT, settingsTable.textSettings.duration.x, settingsTable.textSettings.duration.y)
 
 	abilityNameControl:SetHidden(settingsTable.textSettings.abilityLabel.hidden)
 	abilityNameControl:SetColor(settingsTable.textSettings.abilityLabel.color.r, settingsTable.textSettings.abilityLabel.color.g, settingsTable.textSettings.abilityLabel.color.b, settingsTable.textSettings.abilityLabel.color.a)
 	abilityNameControl:SetScale(settingsTable.textSettings.abilityLabel.textScale)
-	abilityNameControl:ClearAnchors()
-	abilityNameControl:SetAnchor(LEFT, barControl:GetNamedChild("Background"), LEFT, settingsTable.textSettings.abilityLabel.x, settingsTable.textSettings.abilityLabel.y)
 	abilityNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetAbilityName(settingsTable.abilityIDs[1])))
 
 	unitNameControl:SetHidden(settingsTable.textSettings.unitLabel.hidden)
 	unitNameControl:SetColor(settingsTable.textSettings.unitLabel.color.r, settingsTable.textSettings.unitLabel.color.g, settingsTable.textSettings.unitLabel.color.b, settingsTable.textSettings.unitLabel.color.a)
 	unitNameControl:SetScale(settingsTable.textSettings.unitLabel.textScale)
-	unitNameControl:ClearAnchors()
-	unitNameControl:SetAnchor(BOTTOMLEFT, barControl:GetNamedChild("Background"), TOPLEFT, settingsTable.textSettings.unitLabel.x, settingsTable.textSettings.unitLabel.y)
 	if settingsTable.textSettings.unitLabel.accountName and GetUnitDisplayName(unitTag) ~= "" then
 		unitNameControl:SetText(zo_strformat(SI_UNIT_NAME, GetUnitDisplayName(unitTag)))
 	else

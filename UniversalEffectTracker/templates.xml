@@ -43,14 +43,13 @@
                 </Label>
             </Controls>
         </TopLevelControl>
-
         <TopLevelControl name="SingleBarDuration" hidden="false" resizeToFitDescendents="true" virtual="true" scale="1">
             <Dimensions x="235" y="27" />
             <Anchor point="TOPLEFT" relativeTo="GuiRoot" relativePoint="TOPLEFT" offsetX="0" offsetY="0" />
             <Controls>
                 <StatusBar name="$(parent)Bar" hidden="false" barAlignment="Normal" color="00FF00" alpha="0.9">
 					<Dimensions x="200" y="25" />
-                    <Anchor point="LEFT" relativeTo="$(parent)Background" relativePoint="LEFT" offsetX="0" offsetY="0" />
+                    <Anchor point="LEFT" relativeTo="$(parent)" relativePoint="LEFT" offsetX="0" offsetY="0" />
                     <Controls>
                         <Backdrop name="$(parent)Background" centerColor="777777" edgeColor="FFDF00" alpha="0.5">
                             <Dimensions x="202" y="27" />
