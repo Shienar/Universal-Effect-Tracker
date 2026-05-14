@@ -1,12 +1,6 @@
 UniversalTracker = UniversalTracker or {}
 UniversalTracker.name = "UniversalEffectTracker"
 
---[[
-	TODO:
-		- Bar Background color
-		- Bar Edge Color
-]]
-
 UniversalTracker.defaults = {
 	nextID = 0,
 	nextSetupID = 0,
