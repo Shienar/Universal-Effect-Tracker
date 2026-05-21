@@ -32,32 +32,62 @@ function UniversalTracker.UpdateListAnchors(settingsTable)
 		verticalOffset = verticalOffset * 15
 	end
 
-	-- Anchor column heads
 	if columns[0][1] then
 		columns[0][1]:ClearAnchors()
 		columns[0][1]:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, settingsTable.x, settingsTable.y)
 	end
-	if columns[1][1] then
-		columns[1][1]:ClearAnchors()
-		columns[1][1]:SetAnchor(LEFT, columns[0][1], RIGHT, horizontalOffset, 0)
-	end
-	if columns[2][1] then
-		columns[2][1]:ClearAnchors()
-		columns[2][1]:SetAnchor(LEFT, columns[1][1], RIGHT, horizontalOffset, 0)
-	end
 
-	-- Anchor column children
-	for i = 2, #columns[0] do
-		columns[0][i]:ClearAnchors()
-		columns[0][i]:SetAnchor(TOPLEFT, columns[0][i-1], BOTTOMLEFT, 0, verticalOffset)
-	end
-	for i = 2, #columns[1] do
-		columns[1][i]:ClearAnchors()
-		columns[1][i]:SetAnchor(TOPLEFT, columns[1][i-1], BOTTOMLEFT, 0, verticalOffset)
-	end
-	for i = 2, #columns[2] do
-		columns[2][i]:ClearAnchors()
-		columns[2][i]:SetAnchor(TOPLEFT, columns[2][i-1], BOTTOMLEFT, 0, verticalOffset)
+	if settingsTable.type == "Bar" and settingsTable.barSettings.alignment == "Bottom" or settingsTable.barSettings.alignment == "Top" then
+
+		
+		-- Anchor column heads
+		if columns[1][1] then
+			columns[1][1]:ClearAnchors()
+			columns[1][1]:SetAnchor(LEFT, columns[0][1], LEFT, horizontalOffset + columns[0][1]:GetHeight(), 0)
+		end
+		if columns[2][1] then
+			columns[2][1]:ClearAnchors()
+			columns[2][1]:SetAnchor(LEFT, columns[1][1], LEFT, horizontalOffset + columns[1][1]:GetHeight(), 0)
+		end
+		
+		-- Anchor column children
+		for i = 2, #columns[0] do
+			columns[0][i]:ClearAnchors()
+			columns[0][i]:SetAnchor(TOPLEFT, columns[0][i-1], TOPLEFT, 0, verticalOffset + columns[0][i-1]:GetWidth())
+		end
+		for i = 2, #columns[1] do
+			columns[1][i]:ClearAnchors()
+			columns[1][i]:SetAnchor(TOPLEFT, columns[1][i-1], TOPLEFT, 0, verticalOffset + columns[1][i-1]:GetWidth())
+		end
+		for i = 2, #columns[2] do
+			columns[2][i]:ClearAnchors()
+			columns[2][i]:SetAnchor(TOPLEFT, columns[2][i-1], TOPLEFT, 0, verticalOffset + columns[2][i-1]:GetWidth())
+		end
+	else
+		
+		-- Anchor column heads
+		if columns[1][1] then
+			columns[1][1]:ClearAnchors()
+			columns[1][1]:SetAnchor(LEFT, columns[0][1], LEFT, horizontalOffset + columns[0][1]:GetWidth(), 0)
+		end
+		if columns[2][1] then
+			columns[2][1]:ClearAnchors()
+			columns[2][1]:SetAnchor(LEFT, columns[1][1], LEFT, horizontalOffset + columns[1][1]:GetWidth(), 0)
+		end
+		
+		-- Anchor column children
+		for i = 2, #columns[0] do
+			columns[0][i]:ClearAnchors()
+			columns[0][i]:SetAnchor(TOPLEFT, columns[0][i-1], TOPLEFT, 0, verticalOffset + columns[0][i-1]:GetHeight())
+		end
+		for i = 2, #columns[1] do
+			columns[1][i]:ClearAnchors()
+			columns[1][i]:SetAnchor(TOPLEFT, columns[1][i-1], TOPLEFT, 0, verticalOffset + columns[1][i-1]:GetHeight())
+		end
+		for i = 2, #columns[2] do
+			columns[2][i]:ClearAnchors()
+			columns[2][i]:SetAnchor(TOPLEFT, columns[2][i-1], TOPLEFT, 0, verticalOffset + columns[2][i-1]:GetHeight())
+		end
 	end
 end
 
